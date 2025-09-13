@@ -1,0 +1,47 @@
+# SPIRE Namespace Configuration
+# AML-KYC Agent Zero Trust Identity Management
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: spire-system
+  labels:
+    name: spire-system
+    app.kubernetes.io/name: spire
+    app.kubernetes.io/component: identity-management
+    app.kubernetes.io/part-of: aml-kyc-agent
+    security.aml-advisory.company.com/zero-trust: "true"
+  annotations:
+    description: "SPIRE system namespace for zero trust identity management"
+    security.aml-advisory.company.com/compliance: "nist,sox,gdpr"
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: spire-quota
+  namespace: spire-system
+spec:
+  hard:
+    requests.cpu: "2"
+    requests.memory: 4Gi
+    limits.cpu: "4"
+    limits.memory: 8Gi
+    pods: "10"
+    services: "5"
+    secrets: "10"
+    configmaps: "10"
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: spire-limits
+  namespace: spire-system
+spec:
+  limits:
+  - default:
+      cpu: "1"
+      memory: 2Gi
+    defaultRequest:
+      cpu: "100m"
+      memory: 256Mi
+    type: Container

@@ -1,0 +1,272 @@
+# Production Kubernetes Security Policies - Compliance Monitoring and Auditing
+# Comprehensive compliance monitoring for AML-KYC Agent deployment
+
+---
+# Audit Sink for AML Compliance
+apiVersion: audit.k8s.io/v1alpha1
+kind: AuditSink
+metadata:
+  name: aml-compliance-audit-sink
+  labels:
+    app.kubernetes.io/name: aml-compliance-audit-sink
+    app.kubernetes.io/component: security
+    security.aml.io/compliance: "nist-csf"
+spec:
+  policy:
+    level: Metadata
+    stages:
+      - RequestReceived
+      - ResponseStarted
+      - ResponseComplete
+  webhook:
+    clientConfig:
+      service:
+        name: aml-compliance-audit-sink
+        namespace: aml-kyc-agent
+        path: "/audit"
+    throttle:
+      qps: 10
+      burst: 15
+
+---
+# Audit Sink for Security Events
+apiVersion: audit.k8s.io/v1alpha1
+kind: AuditSink
+metadata:
+  name: aml-security-audit-sink
+  labels:
+    app.kubernetes.io/name: aml-security-audit-sink
+    app.kubernetes.io/component: security
+    security.aml.io/compliance: "nist-csf"
+spec:
+  policy:
+    level: RequestResponse
+    stages:
+      - RequestReceived
+      - ResponseStarted
+      - ResponseComplete
+  webhook:
+    clientConfig:
+      service:
+        name: aml-security-audit-sink
+        namespace: aml-kyc-agent
+        path: "/security-audit"
+    throttle:
+      qps: 5
+      burst: 10
+
+---
+# Audit Sink for RBAC Events
+apiVersion: audit.k8s.io/v1alpha1
+kind: AuditSink
+metadata:
+  name: aml-rbac-audit-sink
+  labels:
+    app.kubernetes.io/name: aml-rbac-audit-sink
+    app.kubernetes.io/component: security
+    security.aml.io/compliance: "nist-csf"
+spec:
+  policy:
+    level: RequestResponse
+    stages:
+      - RequestReceived
+      - ResponseStarted
+      - ResponseComplete
+  webhook:
+    clientConfig:
+      service:
+        name: aml-rbac-audit-sink
+        namespace: aml-kyc-agent
+        path: "/rbac-audit"
+    throttle:
+      qps: 5
+      burst: 10
+
+---
+# Audit Sink for Network Policy Events
+apiVersion: audit.k8s.io/v1alpha1
+kind: AuditSink
+metadata:
+  name: aml-network-audit-sink
+  labels:
+    app.kubernetes.io/name: aml-network-audit-sink
+    app.kubernetes.io/component: security
+    security.aml.io/compliance: "nist-csf"
+spec:
+  policy:
+    level: RequestResponse
+    stages:
+      - RequestReceived
+      - ResponseStarted
+      - ResponseComplete
+  webhook:
+    clientConfig:
+      service:
+        name: aml-network-audit-sink
+        namespace: aml-kyc-agent
+        path: "/network-audit"
+    throttle:
+      qps: 5
+      burst: 10
+
+---
+# Audit Sink for Secrets Management
+apiVersion: audit.k8s.io/v1alpha1
+kind: AuditSink
+metadata:
+  name: aml-secrets-audit-sink
+  labels:
+    app.kubernetes.io/name: aml-secrets-audit-sink
+    app.kubernetes.io/component: security
+    security.aml.io/compliance: "nist-csf"
+spec:
+  policy:
+    level: RequestResponse
+    stages:
+      - RequestReceived
+      - ResponseStarted
+      - ResponseComplete
+  webhook:
+    clientConfig:
+      service:
+        name: aml-secrets-audit-sink
+        namespace: aml-kyc-agent
+        path: "/secrets-audit"
+    throttle:
+      qps: 5
+      burst: 10
+
+---
+# Audit Sink for Pod Security Events
+apiVersion: audit.k8s.io/v1alpha1
+kind: AuditSink
+metadata:
+  name: aml-pod-security-audit-sink
+  labels:
+    app.kubernetes.io/name: aml-pod-security-audit-sink
+    app.kubernetes.io/component: security
+    security.aml.io/compliance: "nist-csf"
+spec:
+  policy:
+    level: RequestResponse
+    stages:
+      - RequestReceived
+      - ResponseStarted
+      - ResponseComplete
+  webhook:
+    clientConfig:
+      service:
+        name: aml-pod-security-audit-sink
+        namespace: aml-kyc-agent
+        path: "/pod-security-audit"
+    throttle:
+      qps: 5
+      burst: 10
+
+---
+# Audit Sink for Admission Controller Events
+apiVersion: audit.k8s.io/v1alpha1
+kind: AuditSink
+metadata:
+  name: aml-admission-audit-sink
+  labels:
+    app.kubernetes.io/name: aml-admission-audit-sink
+    app.kubernetes.io/component: security
+    security.aml.io/compliance: "nist-csf"
+spec:
+  policy:
+    level: RequestResponse
+    stages:
+      - RequestReceived
+      - ResponseStarted
+      - ResponseComplete
+  webhook:
+    clientConfig:
+      service:
+        name: aml-admission-audit-sink
+        namespace: aml-kyc-agent
+        path: "/admission-audit"
+    throttle:
+      qps: 5
+      burst: 10
+
+---
+# Audit Sink for Service Mesh Events
+apiVersion: audit.k8s.io/v1alpha1
+kind: AuditSink
+metadata:
+  name: aml-service-mesh-audit-sink
+  labels:
+    app.kubernetes.io/name: aml-service-mesh-audit-sink
+    app.kubernetes.io/component: security
+    security.aml.io/compliance: "nist-csf"
+spec:
+  policy:
+    level: RequestResponse
+    stages:
+      - RequestReceived
+      - ResponseStarted
+      - ResponseComplete
+  webhook:
+    clientConfig:
+      service:
+        name: aml-service-mesh-audit-sink
+        namespace: aml-kyc-agent
+        path: "/service-mesh-audit"
+    throttle:
+      qps: 5
+      burst: 10
+
+---
+# Audit Sink for Monitoring Events
+apiVersion: audit.k8s.io/v1alpha1
+kind: AuditSink
+metadata:
+  name: aml-monitoring-audit-sink
+  labels:
+    app.kubernetes.io/name: aml-monitoring-audit-sink
+    app.kubernetes.io/component: security
+    security.aml.io/compliance: "nist-csf"
+spec:
+  policy:
+    level: RequestResponse
+    stages:
+      - RequestReceived
+      - ResponseStarted
+      - ResponseComplete
+  webhook:
+    clientConfig:
+      service:
+        name: aml-monitoring-audit-sink
+        namespace: aml-kyc-agent
+        path: "/monitoring-audit"
+    throttle:
+      qps: 5
+      burst: 10
+
+---
+# Audit Sink for Compliance Events
+apiVersion: audit.k8s.io/v1alpha1
+kind: AuditSink
+metadata:
+  name: aml-compliance-events-audit-sink
+  labels:
+    app.kubernetes.io/name: aml-compliance-events-audit-sink
+    app.kubernetes.io/component: security
+    security.aml.io/compliance: "nist-csf"
+spec:
+  policy:
+    level: RequestResponse
+    stages:
+      - RequestReceived
+      - ResponseStarted
+      - ResponseComplete
+  webhook:
+    clientConfig:
+      service:
+        name: aml-compliance-events-audit-sink
+        namespace: aml-kyc-agent
+        path: "/compliance-events-audit"
+    throttle:
+      qps: 5
+      burst: 10

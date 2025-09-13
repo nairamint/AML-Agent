@@ -1,0 +1,674 @@
+# Production Kubernetes Security Policies - RBAC and Service Accounts
+# Comprehensive role-based access control for AML-KYC Agent deployment
+
+---
+# Service Account for AML Backend
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: aml-backend-sa
+  namespace: aml-backend
+  labels:
+    app.kubernetes.io/name: aml-backend
+    app.kubernetes.io/component: security
+    security.aml.io/compliance: "nist-csf"
+    security.aml.io/data-classification: "confidential"
+  annotations:
+    security.aml.io/description: "Service account for AML backend services"
+    security.aml.io/rotation-policy: "90-days"
+
+---
+# Service Account for AML Frontend
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: aml-frontend-sa
+  namespace: aml-frontend
+  labels:
+    app.kubernetes.io/name: aml-frontend
+    app.kubernetes.io/component: security
+    security.aml.io/compliance: "nist-csf"
+    security.aml.io/data-classification: "internal"
+  annotations:
+    security.aml.io/description: "Service account for AML frontend services"
+    security.aml.io/rotation-policy: "90-days"
+
+---
+# Service Account for AML KYC Agent
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: aml-kyc-agent-sa
+  namespace: aml-kyc-agent
+  labels:
+    app.kubernetes.io/name: aml-kyc-agent
+    app.kubernetes.io/component: security
+    security.aml.io/compliance: "nist-csf"
+    security.aml.io/data-classification: "confidential"
+  annotations:
+    security.aml.io/description: "Service account for AML KYC agent services"
+    security.aml.io/rotation-policy: "90-days"
+
+---
+# Service Account for Monitoring
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: aml-monitoring-sa
+  namespace: aml-monitoring
+  labels:
+    app.kubernetes.io/name: aml-monitoring
+    app.kubernetes.io/component: security
+    security.aml.io/compliance: "nist-csf"
+    security.aml.io/data-classification: "internal"
+  annotations:
+    security.aml.io/description: "Service account for monitoring services"
+    security.aml.io/rotation-policy: "90-days"
+
+---
+# Service Account for Security Tools
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: aml-security-tools-sa
+  namespace: aml-kyc-agent
+  labels:
+    app.kubernetes.io/name: aml-security-tools
+    app.kubernetes.io/component: security
+    security.aml.io/compliance: "nist-csf"
+    security.aml.io/data-classification: "confidential"
+  annotations:
+    security.aml.io/description: "Service account for security tools"
+    security.aml.io/rotation-policy: "90-days"
+
+---
+# Service Account for Compliance Tools
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: aml-compliance-tools-sa
+  namespace: aml-kyc-agent
+  labels:
+    app.kubernetes.io/name: aml-compliance-tools
+    app.kubernetes.io/component: security
+    security.aml.io/compliance: "nist-csf"
+    security.aml.io/data-classification: "confidential"
+  annotations:
+    security.aml.io/description: "Service account for compliance tools"
+    security.aml.io/rotation-policy: "90-days"
+
+---
+# Role for AML Backend
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: aml-backend-role
+  namespace: aml-backend
+  labels:
+    app.kubernetes.io/name: aml-backend
+    app.kubernetes.io/component: security
+    security.aml.io/compliance: "nist-csf"
+rules:
+  - apiGroups: [""]
+    resources: ["configmaps", "secrets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["services"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "replicasets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["networkpolicies"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["policy"]
+    resources: ["podsecuritypolicies"]
+    verbs: ["use"]
+    resourceNames: ["aml-backend-psp"]
+
+---
+# Role for AML Frontend
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: aml-frontend-role
+  namespace: aml-frontend
+  labels:
+    app.kubernetes.io/name: aml-frontend
+    app.kubernetes.io/component: security
+    security.aml.io/compliance: "nist-csf"
+rules:
+  - apiGroups: [""]
+    resources: ["configmaps", "secrets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["services"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "replicasets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["networkpolicies"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["policy"]
+    resources: ["podsecuritypolicies"]
+    verbs: ["use"]
+    resourceNames: ["aml-frontend-psp"]
+
+---
+# Role for AML KYC Agent
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: aml-kyc-agent-role
+  namespace: aml-kyc-agent
+  labels:
+    app.kubernetes.io/name: aml-kyc-agent
+    app.kubernetes.io/component: security
+    security.aml.io/compliance: "nist-csf"
+rules:
+  - apiGroups: [""]
+    resources: ["configmaps", "secrets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["services"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "replicasets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["networkpolicies"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["policy"]
+    resources: ["podsecuritypolicies"]
+    verbs: ["use"]
+    resourceNames: ["aml-security-tools-psp", "aml-compliance-tools-psp"]
+
+---
+# Role for Monitoring
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: aml-monitoring-role
+  namespace: aml-monitoring
+  labels:
+    app.kubernetes.io/name: aml-monitoring
+    app.kubernetes.io/component: security
+    security.aml.io/compliance: "nist-csf"
+rules:
+  - apiGroups: [""]
+    resources: ["configmaps", "secrets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["services"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "replicasets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["networkpolicies"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["policy"]
+    resources: ["podsecuritypolicies"]
+    verbs: ["use"]
+    resourceNames: ["aml-monitoring-psp"]
+
+---
+# ClusterRole for AML Backend
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: aml-backend-cluster-role
+  labels:
+    app.kubernetes.io/name: aml-backend
+    app.kubernetes.io/component: security
+    security.aml.io/compliance: "nist-csf"
+rules:
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["persistentvolumes"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["storageclasses"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["ingresses"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["extensions"]
+    resources: ["ingresses"]
+    verbs: ["get", "list", "watch"]
+
+---
+# ClusterRole for Monitoring
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: aml-monitoring-cluster-role
+  labels:
+    app.kubernetes.io/name: aml-monitoring
+    app.kubernetes.io/component: security
+    security.aml.io/compliance: "nist-csf"
+rules:
+  - apiGroups: [""]
+    resources: ["nodes", "pods", "services", "endpoints", "persistentvolumes"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "replicasets", "statefulsets", "daemonsets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["extensions"]
+    resources: ["deployments", "replicasets", "ingresses"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["networkpolicies", "ingresses"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["policy"]
+    resources: ["podsecuritypolicies"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["rbac.authorization.k8s.io"]
+    resources: ["roles", "rolebindings", "clusterroles", "clusterrolebindings"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["security.openshift.io"]
+    resources: ["securitycontextconstraints"]
+    verbs: ["get", "list", "watch"]
+
+---
+# ClusterRole for Security Tools
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: aml-security-tools-cluster-role
+  labels:
+    app.kubernetes.io/name: aml-security-tools
+    app.kubernetes.io/component: security
+    security.aml.io/compliance: "nist-csf"
+rules:
+  - apiGroups: [""]
+    resources: ["nodes", "pods", "services", "endpoints", "persistentvolumes"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "replicasets", "statefulsets", "daemonsets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["extensions"]
+    resources: ["deployments", "replicasets", "ingresses"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["networkpolicies", "ingresses"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["policy"]
+    resources: ["podsecuritypolicies"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["rbac.authorization.k8s.io"]
+    resources: ["roles", "rolebindings", "clusterroles", "clusterrolebindings"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["security.openshift.io"]
+    resources: ["securitycontextconstraints"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["admissionregistration.k8s.io"]
+    resources: ["validatingwebhookconfigurations", "mutatingwebhookconfigurations"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["config.gatekeeper.sh"]
+    resources: ["configs", "constrainttemplates", "constraints"]
+    verbs: ["get", "list", "watch"]
+
+---
+# ClusterRole for Compliance Tools
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: aml-compliance-tools-cluster-role
+  labels:
+    app.kubernetes.io/name: aml-compliance-tools
+    app.kubernetes.io/component: security
+    security.aml.io/compliance: "nist-csf"
+rules:
+  - apiGroups: [""]
+    resources: ["nodes", "pods", "services", "endpoints", "persistentvolumes"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "replicasets", "statefulsets", "daemonsets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["extensions"]
+    resources: ["deployments", "replicasets", "ingresses"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["networkpolicies", "ingresses"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["policy"]
+    resources: ["podsecuritypolicies"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["rbac.authorization.k8s.io"]
+    resources: ["roles", "rolebindings", "clusterroles", "clusterrolebindings"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["security.openshift.io"]
+    resources: ["securitycontextconstraints"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["admissionregistration.k8s.io"]
+    resources: ["validatingwebhookconfigurations", "mutatingwebhookconfigurations"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["config.gatekeeper.sh"]
+    resources: ["configs", "constrainttemplates", "constraints"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["audit.k8s.io"]
+    resources: ["auditsinks"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["events.k8s.io"]
+    resources: ["events"]
+    verbs: ["get", "list", "watch"]
+
+---
+# RoleBinding for AML Backend
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: aml-backend-rolebinding
+  namespace: aml-backend
+  labels:
+    app.kubernetes.io/name: aml-backend
+    app.kubernetes.io/component: security
+    security.aml.io/compliance: "nist-csf"
+subjects:
+  - kind: ServiceAccount
+    name: aml-backend-sa
+    namespace: aml-backend
+roleRef:
+  kind: Role
+  name: aml-backend-role
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# RoleBinding for AML Frontend
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: aml-frontend-rolebinding
+  namespace: aml-frontend
+  labels:
+    app.kubernetes.io/name: aml-frontend
+    app.kubernetes.io/component: security
+    security.aml.io/compliance: "nist-csf"
+subjects:
+  - kind: ServiceAccount
+    name: aml-frontend-sa
+    namespace: aml-frontend
+roleRef:
+  kind: Role
+  name: aml-frontend-role
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# RoleBinding for AML KYC Agent
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: aml-kyc-agent-rolebinding
+  namespace: aml-kyc-agent
+  labels:
+    app.kubernetes.io/name: aml-kyc-agent
+    app.kubernetes.io/component: security
+    security.aml.io/compliance: "nist-csf"
+subjects:
+  - kind: ServiceAccount
+    name: aml-kyc-agent-sa
+    namespace: aml-kyc-agent
+roleRef:
+  kind: Role
+  name: aml-kyc-agent-role
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# RoleBinding for Monitoring
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: aml-monitoring-rolebinding
+  namespace: aml-monitoring
+  labels:
+    app.kubernetes.io/name: aml-monitoring
+    app.kubernetes.io/component: security
+    security.aml.io/compliance: "nist-csf"
+subjects:
+  - kind: ServiceAccount
+    name: aml-monitoring-sa
+    namespace: aml-monitoring
+roleRef:
+  kind: Role
+  name: aml-monitoring-role
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# ClusterRoleBinding for AML Backend
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: aml-backend-cluster-rolebinding
+  labels:
+    app.kubernetes.io/name: aml-backend
+    app.kubernetes.io/component: security
+    security.aml.io/compliance: "nist-csf"
+subjects:
+  - kind: ServiceAccount
+    name: aml-backend-sa
+    namespace: aml-backend
+roleRef:
+  kind: ClusterRole
+  name: aml-backend-cluster-role
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# ClusterRoleBinding for Monitoring
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: aml-monitoring-cluster-rolebinding
+  labels:
+    app.kubernetes.io/name: aml-monitoring
+    app.kubernetes.io/component: security
+    security.aml.io/compliance: "nist-csf"
+subjects:
+  - kind: ServiceAccount
+    name: aml-monitoring-sa
+    namespace: aml-monitoring
+roleRef:
+  kind: ClusterRole
+  name: aml-monitoring-cluster-role
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# ClusterRoleBinding for Security Tools
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: aml-security-tools-cluster-rolebinding
+  labels:
+    app.kubernetes.io/name: aml-security-tools
+    app.kubernetes.io/component: security
+    security.aml.io/compliance: "nist-csf"
+subjects:
+  - kind: ServiceAccount
+    name: aml-security-tools-sa
+    namespace: aml-kyc-agent
+roleRef:
+  kind: ClusterRole
+  name: aml-security-tools-cluster-role
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# ClusterRoleBinding for Compliance Tools
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: aml-compliance-tools-cluster-rolebinding
+  labels:
+    app.kubernetes.io/name: aml-compliance-tools
+    app.kubernetes.io/component: security
+    security.aml.io/compliance: "nist-csf"
+subjects:
+  - kind: ServiceAccount
+    name: aml-compliance-tools-sa
+    namespace: aml-kyc-agent
+roleRef:
+  kind: ClusterRole
+  name: aml-compliance-tools-cluster-role
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# Role for AML Backend Pod Security Policy
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: aml-backend-psp-role
+  namespace: aml-backend
+  labels:
+    app.kubernetes.io/name: aml-backend
+    app.kubernetes.io/component: security
+    security.aml.io/compliance: "nist-csf"
+rules:
+  - apiGroups: ["policy"]
+    resources: ["podsecuritypolicies"]
+    verbs: ["use"]
+    resourceNames: ["aml-backend-psp"]
+
+---
+# RoleBinding for AML Backend Pod Security Policy
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: aml-backend-psp-rolebinding
+  namespace: aml-backend
+  labels:
+    app.kubernetes.io/name: aml-backend
+    app.kubernetes.io/component: security
+    security.aml.io/compliance: "nist-csf"
+subjects:
+  - kind: ServiceAccount
+    name: aml-backend-sa
+    namespace: aml-backend
+roleRef:
+  kind: Role
+  name: aml-backend-psp-role
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# Role for AML Frontend Pod Security Policy
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: aml-frontend-psp-role
+  namespace: aml-frontend
+  labels:
+    app.kubernetes.io/name: aml-frontend
+    app.kubernetes.io/component: security
+    security.aml.io/compliance: "nist-csf"
+rules:
+  - apiGroups: ["policy"]
+    resources: ["podsecuritypolicies"]
+    verbs: ["use"]
+    resourceNames: ["aml-frontend-psp"]
+
+---
+# RoleBinding for AML Frontend Pod Security Policy
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: aml-frontend-psp-rolebinding
+  namespace: aml-frontend
+  labels:
+    app.kubernetes.io/name: aml-frontend
+    app.kubernetes.io/component: security
+    security.aml.io/compliance: "nist-csf"
+subjects:
+  - kind: ServiceAccount
+    name: aml-frontend-sa
+    namespace: aml-frontend
+roleRef:
+  kind: Role
+  name: aml-frontend-psp-role
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# Role for AML KYC Agent Pod Security Policy
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: aml-kyc-agent-psp-role
+  namespace: aml-kyc-agent
+  labels:
+    app.kubernetes.io/name: aml-kyc-agent
+    app.kubernetes.io/component: security
+    security.aml.io/compliance: "nist-csf"
+rules:
+  - apiGroups: ["policy"]
+    resources: ["podsecuritypolicies"]
+    verbs: ["use"]
+    resourceNames: ["aml-security-tools-psp", "aml-compliance-tools-psp"]
+
+---
+# RoleBinding for AML KYC Agent Pod Security Policy
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: aml-kyc-agent-psp-rolebinding
+  namespace: aml-kyc-agent
+  labels:
+    app.kubernetes.io/name: aml-kyc-agent
+    app.kubernetes.io/component: security
+    security.aml.io/compliance: "nist-csf"
+subjects:
+  - kind: ServiceAccount
+    name: aml-kyc-agent-sa
+    namespace: aml-kyc-agent
+roleRef:
+  kind: Role
+  name: aml-kyc-agent-psp-role
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# Role for Monitoring Pod Security Policy
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: aml-monitoring-psp-role
+  namespace: aml-monitoring
+  labels:
+    app.kubernetes.io/name: aml-monitoring
+    app.kubernetes.io/component: security
+    security.aml.io/compliance: "nist-csf"
+rules:
+  - apiGroups: ["policy"]
+    resources: ["podsecuritypolicies"]
+    verbs: ["use"]
+    resourceNames: ["aml-monitoring-psp"]
+
+---
+# RoleBinding for Monitoring Pod Security Policy
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: aml-monitoring-psp-rolebinding
+  namespace: aml-monitoring
+  labels:
+    app.kubernetes.io/name: aml-monitoring
+    app.kubernetes.io/component: security
+    security.aml.io/compliance: "nist-csf"
+subjects:
+  - kind: ServiceAccount
+    name: aml-monitoring-sa
+    namespace: aml-monitoring
+roleRef:
+  kind: Role
+  name: aml-monitoring-psp-role
+  apiGroup: rbac.authorization.k8s.io

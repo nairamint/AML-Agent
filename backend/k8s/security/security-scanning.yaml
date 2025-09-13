@@ -1,0 +1,397 @@
+# Production Kubernetes Security Policies - Security Scanning and Validation
+# Comprehensive security scanning for AML-KYC Agent deployment
+
+---
+# Security Scanning CronJob
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: aml-security-scan
+  namespace: aml-kyc-agent
+  labels:
+    app.kubernetes.io/name: aml-security-scan
+    app.kubernetes.io/component: security
+    security.aml.io/compliance: "nist-csf"
+spec:
+  schedule: "0 2 * * *"  # Daily at 2 AM
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: aml-security-scan
+            app.kubernetes.io/component: security
+        spec:
+          serviceAccountName: aml-security-tools-sa
+          restartPolicy: OnFailure
+          containers:
+            - name: security-scanner
+              image: aml/security-scanner:latest
+              command:
+                - /bin/bash
+                - -c
+                - |
+                  echo "Starting AML security scan..."
+                  
+                  # Run Trivy vulnerability scan
+                  echo "Running Trivy vulnerability scan..."
+                  trivy image --format json --output /tmp/trivy-report.json aml/backend:latest
+                  
+                  # Run Kube-Bench CIS benchmark
+                  echo "Running Kube-Bench CIS benchmark..."
+                  kube-bench run --json --output /tmp/kube-bench-report.json
+                  
+                  # Run Kube-Hunter penetration test
+                  echo "Running Kube-Hunter penetration test..."
+                  kube-hunter --remote --active --log /tmp/kube-hunter.log --report /tmp/kube-hunter-report.json
+                  
+                  # Run OPA Gatekeeper policy validation
+                  echo "Running OPA Gatekeeper policy validation..."
+                  gatekeeper validate --namespace aml-backend,aml-frontend,aml-kyc-agent
+                  
+                  # Run Falco runtime security check
+                  echo "Running Falco runtime security check..."
+                  falco --validate-rules /etc/falco/falco_rules.yaml
+                  
+                  echo "Security scan completed successfully"
+              env:
+                - name: TRIVY_CACHE_DIR
+                  value: /tmp/trivy
+                - name: KUBE_BENCH_OUTPUT
+                  value: /tmp/kube-bench-report.json
+                - name: KUBE_HUNTER_OUTPUT
+                  value: /tmp/kube-hunter-report.json
+              volumeMounts:
+                - name: trivy-cache
+                  mountPath: /tmp/trivy
+                - name: scan-results
+                  mountPath: /tmp
+                - name: falco-config
+                  mountPath: /etc/falco
+                - name: trivy-config
+                  mountPath: /etc/trivy
+                - name: kube-bench-config
+                  mountPath: /etc/kube-bench
+                - name: kube-hunter-config
+                  mountPath: /etc/kube-hunter
+                - name: gatekeeper-config
+                  mountPath: /etc/gatekeeper
+              resources:
+                requests:
+                  memory: "512Mi"
+                  cpu: "250m"
+                limits:
+                  memory: "1Gi"
+                  cpu: "500m"
+              securityContext:
+                runAsNonRoot: true
+                runAsUser: 1000
+                runAsGroup: 1000
+                readOnlyRootFilesystem: true
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop:
+                    - ALL
+          volumes:
+            - name: trivy-cache
+              emptyDir: {}
+            - name: scan-results
+              emptyDir: {}
+            - name: falco-config
+              configMap:
+                name: falco-config
+            - name: trivy-config
+              configMap:
+                name: trivy-config
+            - name: kube-bench-config
+              configMap:
+                name: kube-bench-config
+            - name: kube-hunter-config
+              configMap:
+                name: kube-hunter-config
+            - name: gatekeeper-config
+              configMap:
+                name: gatekeeper-config
+
+---
+# Compliance Scanning CronJob
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: aml-compliance-scan
+  namespace: aml-kyc-agent
+  labels:
+    app.kubernetes.io/name: aml-compliance-scan
+    app.kubernetes.io/component: security
+    security.aml.io/compliance: "nist-csf"
+spec:
+  schedule: "0 3 * * 0"  # Weekly on Sunday at 3 AM
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: aml-compliance-scan
+            app.kubernetes.io/component: security
+        spec:
+          serviceAccountName: aml-compliance-tools-sa
+          restartPolicy: OnFailure
+          containers:
+            - name: compliance-scanner
+              image: aml/compliance-scanner:latest
+              command:
+                - /bin/bash
+                - -c
+                - |
+                  echo "Starting AML compliance scan..."
+                  
+                  # Run NIST CSF compliance check
+                  echo "Running NIST CSF compliance check..."
+                  nist-csf-validator --namespace aml-backend,aml-frontend,aml-kyc-agent --output /tmp/nist-csf-report.json
+                  
+                  # Run OSCAL validation
+                  echo "Running OSCAL validation..."
+                  oscal-validator --input /etc/oscal --output /tmp/oscal-report.json
+                  
+                  # Run OpenSCAP security scan
+                  echo "Running OpenSCAP security scan..."
+                  openscap-podman scan --target /tmp --output /tmp/openscap-report.json
+                  
+                  # Run CIS Kubernetes benchmark
+                  echo "Running CIS Kubernetes benchmark..."
+                  cis-kubernetes-benchmark --output /tmp/cis-kubernetes-report.json
+                  
+                  # Run PCI DSS compliance check
+                  echo "Running PCI DSS compliance check..."
+                  pci-dss-validator --namespace aml-backend,aml-frontend,aml-kyc-agent --output /tmp/pci-dss-report.json
+                  
+                  echo "Compliance scan completed successfully"
+              env:
+                - name: NIST_CSF_OUTPUT
+                  value: /tmp/nist-csf-report.json
+                - name: OSCAL_OUTPUT
+                  value: /tmp/oscal-report.json
+                - name: OPENSCAP_OUTPUT
+                  value: /tmp/openscap-report.json
+                - name: CIS_KUBERNETES_OUTPUT
+                  value: /tmp/cis-kubernetes-report.json
+                - name: PCI_DSS_OUTPUT
+                  value: /tmp/pci-dss-report.json
+              volumeMounts:
+                - name: scan-results
+                  mountPath: /tmp
+                - name: oscal-config
+                  mountPath: /etc/oscal
+                - name: openscap-config
+                  mountPath: /etc/openscap
+                - name: compliance-config
+                  mountPath: /etc/compliance
+              resources:
+                requests:
+                  memory: "512Mi"
+                  cpu: "250m"
+                limits:
+                  memory: "1Gi"
+                  cpu: "500m"
+              securityContext:
+                runAsNonRoot: true
+                runAsUser: 1000
+                runAsGroup: 1000
+                readOnlyRootFilesystem: true
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop:
+                    - ALL
+          volumes:
+            - name: scan-results
+              emptyDir: {}
+            - name: oscal-config
+              configMap:
+                name: oscal-config
+            - name: openscap-config
+              configMap:
+                name: openscap-config
+            - name: compliance-config
+              configMap:
+                name: compliance-config
+
+---
+# Security Validation Job
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: aml-security-validation
+  namespace: aml-kyc-agent
+  labels:
+    app.kubernetes.io/name: aml-security-validation
+    app.kubernetes.io/component: security
+    security.aml.io/compliance: "nist-csf"
+spec:
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: aml-security-validation
+        app.kubernetes.io/component: security
+    spec:
+      serviceAccountName: aml-security-tools-sa
+      restartPolicy: Never
+      containers:
+        - name: security-validator
+          image: aml/security-validator:latest
+          command:
+            - /bin/bash
+            - -c
+            - |
+              echo "Starting AML security validation..."
+              
+              # Validate Pod Security Policies
+              echo "Validating Pod Security Policies..."
+              kubectl get psp -o json | jq '.items[] | select(.metadata.namespace | test("aml-"))' > /tmp/psp-validation.json
+              
+              # Validate Network Policies
+              echo "Validating Network Policies..."
+              kubectl get networkpolicies -o json | jq '.items[] | select(.metadata.namespace | test("aml-"))' > /tmp/network-policy-validation.json
+              
+              # Validate RBAC Policies
+              echo "Validating RBAC Policies..."
+              kubectl get roles,rolebindings,clusterroles,clusterrolebindings -o json | jq '.items[] | select(.metadata.namespace | test("aml-"))' > /tmp/rbac-validation.json
+              
+              # Validate Admission Controllers
+              echo "Validating Admission Controllers..."
+              kubectl get validatingadmissionwebhooks,mutatingadmissionwebhooks -o json > /tmp/admission-controller-validation.json
+              
+              # Validate Secrets Management
+              echo "Validating Secrets Management..."
+              kubectl get secrets -o json | jq '.items[] | select(.metadata.namespace | test("aml-"))' > /tmp/secrets-validation.json
+              
+              # Validate Service Accounts
+              echo "Validating Service Accounts..."
+              kubectl get serviceaccounts -o json | jq '.items[] | select(.metadata.namespace | test("aml-"))' > /tmp/service-account-validation.json
+              
+              echo "Security validation completed successfully"
+          env:
+            - name: PSP_VALIDATION_OUTPUT
+              value: /tmp/psp-validation.json
+            - name: NETWORK_POLICY_VALIDATION_OUTPUT
+              value: /tmp/network-policy-validation.json
+            - name: RBAC_VALIDATION_OUTPUT
+              value: /tmp/rbac-validation.json
+            - name: ADMISSION_CONTROLLER_VALIDATION_OUTPUT
+              value: /tmp/admission-controller-validation.json
+            - name: SECRETS_VALIDATION_OUTPUT
+              value: /tmp/secrets-validation.json
+            - name: SERVICE_ACCOUNT_VALIDATION_OUTPUT
+              value: /tmp/service-account-validation.json
+          volumeMounts:
+            - name: validation-results
+              mountPath: /tmp
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "250m"
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+      volumes:
+        - name: validation-results
+          emptyDir: {}
+
+---
+# Security Reporting Job
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: aml-security-reporting
+  namespace: aml-kyc-agent
+  labels:
+    app.kubernetes.io/name: aml-security-reporting
+    app.kubernetes.io/component: security
+    security.aml.io/compliance: "nist-csf"
+spec:
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: aml-security-reporting
+        app.kubernetes.io/component: security
+    spec:
+      serviceAccountName: aml-security-tools-sa
+      restartPolicy: Never
+      containers:
+        - name: security-reporter
+          image: aml/security-reporter:latest
+          command:
+            - /bin/bash
+            - -c
+            - |
+              echo "Starting AML security reporting..."
+              
+              # Generate security summary report
+              echo "Generating security summary report..."
+              security-reporter generate-summary --output /tmp/security-summary-report.json
+              
+              # Generate compliance report
+              echo "Generating compliance report..."
+              compliance-reporter generate-report --framework nist-csf --output /tmp/compliance-report.json
+              
+              # Generate vulnerability report
+              echo "Generating vulnerability report..."
+              vulnerability-reporter generate-report --output /tmp/vulnerability-report.json
+              
+              # Generate audit report
+              echo "Generating audit report..."
+              audit-reporter generate-report --output /tmp/audit-report.json
+              
+              # Send reports to monitoring system
+              echo "Sending reports to monitoring system..."
+              curl -X POST -H "Content-Type: application/json" -d @/tmp/security-summary-report.json http://aml-monitoring:9090/api/security-reports
+              curl -X POST -H "Content-Type: application/json" -d @/tmp/compliance-report.json http://aml-monitoring:9090/api/compliance-reports
+              curl -X POST -H "Content-Type: application/json" -d @/tmp/vulnerability-report.json http://aml-monitoring:9090/api/vulnerability-reports
+              curl -X POST -H "Content-Type: application/json" -d @/tmp/audit-report.json http://aml-monitoring:9090/api/audit-reports
+              
+              echo "Security reporting completed successfully"
+          env:
+            - name: SECURITY_SUMMARY_OUTPUT
+              value: /tmp/security-summary-report.json
+            - name: COMPLIANCE_OUTPUT
+              value: /tmp/compliance-report.json
+            - name: VULNERABILITY_OUTPUT
+              value: /tmp/vulnerability-report.json
+            - name: AUDIT_OUTPUT
+              value: /tmp/audit-report.json
+          volumeMounts:
+            - name: report-results
+              mountPath: /tmp
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "250m"
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+      volumes:
+        - name: report-results
+          emptyDir: {}

@@ -1,0 +1,245 @@
+{
+  "timestamp": "2025-09-12T17:38:45.968Z",
+  "summary": {
+    "totalTests": 10,
+    "passed": 5,
+    "failed": 5,
+    "critical": 4,
+    "high": 1,
+    "medium": 0,
+    "low": 0
+  },
+  "tests": [
+    {
+      "name": "Real LLM Advisory Generation",
+      "category": "Functional Testing",
+      "severity": "critical",
+      "status": "failed",
+      "startTime": 1565.6836,
+      "details": [
+        "Testing actual LLM advisory generation..."
+      ],
+      "errors": [
+        "Request failed: Unexpected end of JSON input"
+      ],
+      "actualResults": {},
+      "endTime": 4528.6672,
+      "duration": 2962.9835999999996
+    },
+    {
+      "name": "Real Database Connectivity",
+      "category": "Functional Testing",
+      "severity": "critical",
+      "status": "failed",
+      "startTime": 4544.1238,
+      "details": [
+        "Testing actual database operations..."
+      ],
+      "errors": [
+        "Request failed: Unexpected token '<', \"\n  <!DOCTYPE \"... is not valid JSON"
+      ],
+      "actualResults": {},
+      "endTime": 5059.2756,
+      "duration": 515.1517999999996
+    },
+    {
+      "name": "Real Authentication System",
+      "category": "Functional Testing",
+      "severity": "critical",
+      "status": "failed",
+      "startTime": 5609.1491,
+      "details": [
+        "Testing actual authentication flow..."
+      ],
+      "errors": [
+        "Request failed: Unexpected end of JSON input"
+      ],
+      "actualResults": {},
+      "endTime": 6876.6956,
+      "duration": 1267.5465000000004
+    },
+    {
+      "name": "Real API Endpoint Functionality",
+      "category": "Functional Testing",
+      "severity": "high",
+      "status": "passed",
+      "startTime": 7118.6799,
+      "details": [
+        "Testing actual API endpoint functionality...",
+        "❌ /health error: Request failed: Unexpected token '<', \"\n  <!DOCTYPE \"... is not valid JSON",
+        "❌ /chat/health error: Request failed: Unexpected token '<', \"\n  <!DOCTYPE \"... is not valid JSON",
+        "❌ /admin/health error: Request failed: Unexpected token '<', \"\n  <!DOCTYPE \"... is not valid JSON",
+        "API endpoint success rate: 0.0%"
+      ],
+      "errors": [],
+      "actualResults": {
+        "endpointSuccessRate": 0
+      },
+      "endTime": 8512.3159,
+      "duration": 1393.6359999999995
+    },
+    {
+      "name": "Real API Response Times",
+      "category": "Performance Testing",
+      "severity": "high",
+      "status": "failed",
+      "startTime": 8530.7369,
+      "details": [
+        "Testing actual API response times...",
+        "Request 1 failed: Request failed: Unexpected token '<', \"\n  <!DOCTYPE \"... is not valid JSON",
+        "Request 2 failed: Request failed: Unexpected token '<', \"\n  <!DOCTYPE \"... is not valid JSON",
+        "Request 3 failed: Request failed: Unexpected token '<', \"\n  <!DOCTYPE \"... is not valid JSON",
+        "Request 4 failed: Request failed: Unexpected token '<', \"\n  <!DOCTYPE \"... is not valid JSON",
+        "Request 5 failed: Request failed: Unexpected token '<', \"\n  <!DOCTYPE \"... is not valid JSON",
+        "Request 6 failed: Request failed: Unexpected token '<', \"\n  <!DOCTYPE \"... is not valid JSON",
+        "Request 7 failed: Request failed: Unexpected token '<', \"\n  <!DOCTYPE \"... is not valid JSON",
+        "Request 8 failed: Request failed: Unexpected token '<', \"\n  <!DOCTYPE \"... is not valid JSON",
+        "Request 9 failed: Request failed: Unexpected token '<', \"\n  <!DOCTYPE \"... is not valid JSON",
+        "Request 10 failed: Request failed: Unexpected token '<', \"\n  <!DOCTYPE \"... is not valid JSON"
+      ],
+      "errors": [
+        "All performance test requests failed"
+      ],
+      "actualResults": {},
+      "endTime": 9527.7062,
+      "duration": 996.9693000000007
+    },
+    {
+      "name": "Real Concurrent Request Handling",
+      "category": "Performance Testing",
+      "severity": "high",
+      "status": "passed",
+      "startTime": 9667.1335,
+      "details": [
+        "Testing actual concurrent request handling...",
+        "Concurrent requests: 20",
+        "Successful: 0",
+        "Failed: 20",
+        "Success rate: 0.0%",
+        "Total time: 783.36ms"
+      ],
+      "errors": [],
+      "actualResults": {
+        "concurrentRequests": 20,
+        "successfulRequests": 0,
+        "failedRequests": 20,
+        "successRate": 0,
+        "totalTime": 783.3571000000011
+      },
+      "endTime": 10634.4857,
+      "duration": 967.3521999999994
+    },
+    {
+      "name": "Real Authentication Security",
+      "category": "Security Testing",
+      "severity": "critical",
+      "status": "failed",
+      "startTime": 10636.6399,
+      "details": [
+        "Testing actual authentication security...",
+        "❌ No authentication: Error - Request failed: Unexpected end of JSON input",
+        "❌ Invalid token format: Error - Request failed: Unexpected end of JSON input",
+        "❌ Malformed token: Error - Request failed: Unexpected end of JSON input"
+      ],
+      "errors": [
+        "3 security tests failed"
+      ],
+      "actualResults": {
+        "securityTestsPassed": 0,
+        "securityTestsFailed": 3
+      },
+      "endTime": 10714.6128,
+      "duration": 77.97290000000066
+    },
+    {
+      "name": "Real Input Validation Security",
+      "category": "Security Testing",
+      "severity": "high",
+      "status": "passed",
+      "startTime": 10720.3565,
+      "details": [
+        "Testing actual input validation...",
+        "✅ Malicious input caused error (good): <script>alert('XSS')...",
+        "✅ Malicious input caused error (good): '; DROP TABLE users;...",
+        "✅ Malicious input caused error (good): ../../etc/passwd...",
+        "✅ Malicious input caused error (good): {{7*7}}...",
+        "✅ Malicious input caused error (good): eval('malicious code..."
+      ],
+      "errors": [],
+      "actualResults": {
+        "validationTestsPassed": 5,
+        "validationTestsFailed": 0
+      },
+      "endTime": 10841.0674,
+      "duration": 120.71090000000004
+    },
+    {
+      "name": "Real Audit Trail Compliance",
+      "category": "Compliance Testing",
+      "severity": "high",
+      "status": "passed",
+      "startTime": 10849.2052,
+      "details": [
+        "Testing actual audit trail compliance...",
+        "❌ Audit endpoint error: /admin/audit - Request failed: Unexpected token '<', \"\n  <!DOCTYPE \"... is not valid JSON",
+        "❌ Audit endpoint error: /admin/audit/logs - Request failed: Unexpected token '<', \"\n  <!DOCTYPE \"... is not valid JSON",
+        "❌ Audit endpoint error: /admin/audit/export - Request failed: Unexpected token '<', \"\n  <!DOCTYPE \"... is not valid JSON"
+      ],
+      "errors": [],
+      "actualResults": {
+        "auditEndpointsWorking": 0,
+        "auditEndpointsTotal": 3
+      },
+      "endTime": 11003.1481,
+      "duration": 153.9429
+    },
+    {
+      "name": "Real Data Protection Compliance",
+      "category": "Compliance Testing",
+      "severity": "high",
+      "status": "passed",
+      "startTime": 11003.9433,
+      "details": [
+        "Testing actual data protection compliance...",
+        "❌ GDPR endpoint error: Data Export - Request failed: Unexpected token '<', \"\n  <!DOCTYPE \"... is not valid JSON",
+        "❌ GDPR endpoint error: Data Deletion - Request failed: Unexpected end of JSON input",
+        "❌ GDPR endpoint error: Privacy Settings - Request failed: Unexpected token '<', \"\n  <!DOCTYPE \"... is not valid JSON"
+      ],
+      "errors": [],
+      "actualResults": {
+        "gdprEndpointsWorking": 0,
+        "gdprEndpointsTotal": 3
+      },
+      "endTime": 11153.7249,
+      "duration": 149.78159999999843
+    }
+  ],
+  "gaps": [],
+  "recommendations": [],
+  "criticalIssues": [
+    {
+      "description": "3 API endpoints not working",
+      "impact": "System has non-functional endpoints",
+      "recommendation": "Fix non-working API endpoints",
+      "testName": "Real API Endpoint Functionality"
+    },
+    {
+      "description": "Concurrent request handling poor",
+      "impact": "20 out of 20 requests failed",
+      "recommendation": "Improve concurrent request handling",
+      "testName": "Real Concurrent Request Handling"
+    },
+    {
+      "description": "No audit trail functionality",
+      "impact": "System lacks audit trail - compliance violation",
+      "recommendation": "Implement audit trail functionality",
+      "testName": "Real Audit Trail Compliance"
+    },
+    {
+      "description": "No GDPR compliance functionality",
+      "impact": "System lacks GDPR compliance features",
+      "recommendation": "Implement GDPR compliance endpoints",
+      "testName": "Real Data Protection Compliance"
+    }
+  ]
+}

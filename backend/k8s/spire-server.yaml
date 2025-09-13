@@ -1,0 +1,360 @@
+# SPIRE Server Deployment
+# AML-KYC Agent Zero Trust Identity Management
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: spire-server
+  namespace: spire-system
+  labels:
+    app.kubernetes.io/name: spire-server
+    app.kubernetes.io/component: identity-management
+    app.kubernetes.io/part-of: aml-kyc-agent
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: spire-server
+  labels:
+    app.kubernetes.io/name: spire-server
+    app.kubernetes.io/component: identity-management
+    app.kubernetes.io/part-of: aml-kyc-agent
+rules:
+- apiGroups: [""]
+  resources: ["nodes", "pods", "services", "endpoints", "persistentvolumeclaims", "events", "configmaps", "secrets"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["apps"]
+  resources: ["deployments", "daemonsets", "replicasets", "statefulsets"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["extensions", "networking.k8s.io"]
+  resources: ["ingresses"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["policy"]
+  resources: ["podsecuritypolicies"]
+  verbs: ["use"]
+  resourceNames: ["spire-server"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: spire-server
+  labels:
+    app.kubernetes.io/name: spire-server
+    app.kubernetes.io/component: identity-management
+    app.kubernetes.io/part-of: aml-kyc-agent
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: spire-server
+subjects:
+- kind: ServiceAccount
+  name: spire-server
+  namespace: spire-system
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: spire-server-config
+  namespace: spire-system
+  labels:
+    app.kubernetes.io/name: spire-server
+    app.kubernetes.io/component: identity-management
+    app.kubernetes.io/part-of: aml-kyc-agent
+data:
+  server.conf: |
+    # Production SPIRE Server Configuration
+    server:
+      bind_address: "0.0.0.0"
+      bind_port: "8081"
+      trust_domain: "aml-advisory.company.com"
+      data_dir: "/opt/spire/data/server"
+      log_level: "INFO"
+      log_format: "json"
+      
+      ca_subject:
+        country: ["UK"]
+        organization: ["AML Advisory Agent"]
+        organizational_unit: ["Security Team"]
+        common_name: "SPIRE Server CA"
+        locality: ["London"]
+        province: ["England"]
+      
+      plugins:
+        DataStore:
+          sql:
+            plugin_data:
+              database_type: "postgres"
+              connection_string: "postgres://spire:${SPIRE_DB_PASSWORD}@postgres:5432/spire?sslmode=require"
+              max_open_conns: 25
+              max_idle_conns: 5
+              conn_max_lifetime: "1h"
+              conn_max_idle_time: "30m"
+        
+        NodeAttestor:
+          k8s_psat:
+            plugin_data:
+              clusters:
+                production:
+                  service_account_allow_list: 
+                    - "spire:spire-agent"
+                    - "aml-kyc:aml-kyc-backend"
+                    - "aml-kyc:aml-kyc-frontend"
+                    - "aml-kyc:aml-kyc-llm"
+        
+        KeyManager:
+          disk:
+            plugin_data:
+              keys_path: "/opt/spire/data/server/keys.json"
+              password: "${SPIRE_KEY_PASSWORD}"
+        
+        Notifier:
+          k8sbundle:
+            plugin_data:
+              namespace: "spire-system"
+              config_map: "spire-bundle"
+              config_map_key: "bundle.crt"
+    
+    telemetry:
+      prometheus:
+        port: "8082"
+        listen_socket: "/tmp/spire-server.sock"
+    
+    health_checks:
+      listener_enabled: true
+      bind_address: "0.0.0.0"
+      bind_port: "8080"
+      live_path: "/live"
+      ready_path: "/ready"
+    
+    audit_log:
+      enabled: true
+      log_level: "INFO"
+      log_format: "json"
+      log_file: "/opt/spire/logs/audit.log"
+      max_size_mb: 100
+      max_backups: 5
+      max_age_days: 30
+      compress: true
+    
+    security:
+      jwt_signing_key_rotation_interval: "24h"
+      default_svid_ttl: "1h"
+      default_bundle_ttl: "24h"
+      rate_limit:
+        enabled: true
+        requests_per_second: 100
+        burst_size: 200
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: spire-server-secrets
+  namespace: spire-system
+  labels:
+    app.kubernetes.io/name: spire-server
+    app.kubernetes.io/component: identity-management
+    app.kubernetes.io/part-of: aml-kyc-agent
+type: Opaque
+data:
+  # Base64 encoded secrets - replace with actual values
+  spire-db-password: cGFzc3dvcmQxMjM=  # password123
+  spire-key-password: a2V5cGFzc3dvcmQxMjM=  # keypassword123
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: spire-server-data
+  namespace: spire-system
+  labels:
+    app.kubernetes.io/name: spire-server
+    app.kubernetes.io/component: identity-management
+    app.kubernetes.io/part-of: aml-kyc-agent
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: fast-ssd
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: spire-server
+  namespace: spire-system
+  labels:
+    app.kubernetes.io/name: spire-server
+    app.kubernetes.io/component: identity-management
+    app.kubernetes.io/part-of: aml-kyc-agent
+spec:
+  serviceName: spire-server
+  replicas: 3
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: spire-server
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: spire-server
+        app.kubernetes.io/component: identity-management
+        app.kubernetes.io/part-of: aml-kyc-agent
+    spec:
+      serviceAccountName: spire-server
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+      containers:
+      - name: spire-server
+        image: gcr.io/spiffe-io/spire-server:1.8.0
+        imagePullPolicy: IfNotPresent
+        args:
+        - -config
+        - /opt/spire/conf/server.conf
+        ports:
+        - name: grpc
+          containerPort: 8081
+          protocol: TCP
+        - name: http
+          containerPort: 8080
+          protocol: TCP
+        - name: metrics
+          containerPort: 8082
+          protocol: TCP
+        env:
+        - name: SPIRE_DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: spire-server-secrets
+              key: spire-db-password
+        - name: SPIRE_KEY_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: spire-server-secrets
+              key: spire-key-password
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        volumeMounts:
+        - name: spire-config
+          mountPath: /opt/spire/conf
+        - name: spire-data
+          mountPath: /opt/spire/data
+        - name: spire-logs
+          mountPath: /opt/spire/logs
+        - name: spire-tmp
+          mountPath: /tmp
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            cpu: 500m
+            memory: 1Gi
+        livenessProbe:
+          httpGet:
+            path: /live
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 1000
+          runAsGroup: 1000
+          capabilities:
+            drop:
+            - ALL
+      volumes:
+      - name: spire-config
+        configMap:
+          name: spire-server-config
+      - name: spire-data
+        persistentVolumeClaim:
+          claimName: spire-server-data
+      - name: spire-logs
+        emptyDir: {}
+      - name: spire-tmp
+        emptyDir: {}
+      nodeSelector:
+        kubernetes.io/os: linux
+      tolerations:
+      - key: node-role.kubernetes.io/master
+        operator: Exists
+        effect: NoSchedule
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app.kubernetes.io/name
+                  operator: In
+                  values:
+                  - spire-server
+              topologyKey: kubernetes.io/hostname
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: spire-server
+  namespace: spire-system
+  labels:
+    app.kubernetes.io/name: spire-server
+    app.kubernetes.io/component: identity-management
+    app.kubernetes.io/part-of: aml-kyc-agent
+spec:
+  type: ClusterIP
+  ports:
+  - name: grpc
+    port: 8081
+    targetPort: 8081
+    protocol: TCP
+  - name: http
+    port: 8080
+    targetPort: 8080
+    protocol: TCP
+  - name: metrics
+    port: 8082
+    targetPort: 8082
+    protocol: TCP
+  selector:
+    app.kubernetes.io/name: spire-server
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: spire-server-headless
+  namespace: spire-system
+  labels:
+    app.kubernetes.io/name: spire-server
+    app.kubernetes.io/component: identity-management
+    app.kubernetes.io/part-of: aml-kyc-agent
+spec:
+  type: ClusterIP
+  clusterIP: None
+  ports:
+  - name: grpc
+    port: 8081
+    targetPort: 8081
+    protocol: TCP
+  selector:
+    app.kubernetes.io/name: spire-server

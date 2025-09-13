@@ -1,0 +1,283 @@
+# Production Kubernetes Security Policies - Runtime Security
+# Comprehensive runtime security for AML-KYC Agent deployment
+
+---
+# Falco Configuration for Runtime Security
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: falco-config
+  namespace: aml-kyc-agent
+  labels:
+    app.kubernetes.io/name: falco
+    app.kubernetes.io/component: security
+    security.aml.io/compliance: "nist-csf"
+data:
+  falco.yaml: |
+    rules_file:
+      - /etc/falco/falco_rules.yaml
+      - /etc/falco/falco_rules.local.yaml
+      - /etc/falco/k8s_audit_rules.yaml
+      - /etc/falco/rules.d
+    
+    time_format_iso_8601: true
+    
+    json_output: true
+    json_include_output_property: true
+    
+    priority: debug
+    minimum_priority: info
+    
+    buffered_outputs: true
+    outputs_rate: 1
+    outputs_max_burst: 1000
+    
+    syscall_event_drops:
+      actions:
+        - log
+        - alert
+      rate: 0.1
+      max_burst: 1000
+    
+    syscall_event_drops_actions:
+      - log
+      - alert
+    
+    syscall_event_timeout_max_consecutives: 1000
+    
+    webserver:
+      enabled: true
+      listen_port: 8765
+      k8s_audit_endpoint: /k8s-audit
+      k8s_audit_webhook: /k8s-audit
+      ssl_enabled: false
+    
+    grpc:
+      enabled: true
+      bind_address: "0.0.0.0:5060"
+      threadiness: 8
+    
+    grpc_output:
+      enabled: true
+
+---
+# Falco Rules for AML Security
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: falco-rules
+  namespace: aml-kyc-agent
+  labels:
+    app.kubernetes.io/name: falco
+    app.kubernetes.io/component: security
+    security.aml.io/compliance: "nist-csf"
+data:
+  aml-security-rules.yaml: |
+    - rule: AML Unauthorized Access
+      desc: Detect unauthorized access to AML services
+      condition: >
+        ka and ka.verb in (create, update, delete) and
+        ka.target.resource in (pods, services, deployments) and
+        ka.target.namespace in (aml-backend, aml-frontend, aml-kyc-agent) and
+        not ka.user.name in (aml-backend-sa, aml-frontend-sa, aml-kyc-agent-sa)
+      output: >
+        Unauthorized access to AML services (user=%ka.user.name verb=%ka.verb resource=%ka.target.resource namespace=%ka.target.namespace)
+      priority: CRITICAL
+      tags: [aml, security, unauthorized-access]
+    
+    - rule: AML Privilege Escalation
+      desc: Detect privilege escalation attempts in AML pods
+      condition: >
+        ka and ka.verb=create and ka.target.resource=pods and
+        ka.target.namespace in (aml-backend, aml-frontend, aml-kyc-agent) and
+        ka.req.pod.spec.containers[0].securityContext.privileged=true
+      output: >
+        Privilege escalation attempt in AML pod (user=%ka.user.name namespace=%ka.target.namespace)
+      priority: CRITICAL
+      tags: [aml, security, privilege-escalation]
+    
+    - rule: AML Network Policy Violation
+      desc: Detect network policy violations in AML namespaces
+      condition: >
+        ka and ka.verb in (create, update, delete) and
+        ka.target.resource=networkpolicies and
+        ka.target.namespace in (aml-backend, aml-frontend, aml-kyc-agent)
+      output: >
+        Network policy modification in AML namespace (user=%ka.user.name verb=%ka.verb namespace=%ka.target.namespace)
+      priority: HIGH
+      tags: [aml, security, network-policy]
+    
+    - rule: AML Secret Access
+      desc: Detect unauthorized access to AML secrets
+      condition: >
+        ka and ka.verb in (get, list, watch) and
+        ka.target.resource=secrets and
+        ka.target.namespace in (aml-backend, aml-frontend, aml-kyc-agent) and
+        not ka.user.name in (aml-backend-sa, aml-frontend-sa, aml-kyc-agent-sa)
+      output: >
+        Unauthorized secret access (user=%ka.user.name resource=%ka.target.resource namespace=%ka.target.namespace)
+      priority: HIGH
+      tags: [aml, security, secret-access]
+    
+    - rule: AML Pod Security Policy Violation
+      desc: Detect pod security policy violations
+      condition: >
+        ka and ka.verb=create and ka.target.resource=pods and
+        ka.target.namespace in (aml-backend, aml-frontend, aml-kyc-agent) and
+        (ka.req.pod.spec.containers[0].securityContext.runAsUser=0 or
+         ka.req.pod.spec.containers[0].securityContext.privileged=true)
+      output: >
+        Pod security policy violation (user=%ka.user.name namespace=%ka.target.namespace)
+      priority: HIGH
+      tags: [aml, security, pod-security]
+
+---
+# Trivy Configuration for Vulnerability Scanning
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: trivy-config
+  namespace: aml-kyc-agent
+  labels:
+    app.kubernetes.io/name: trivy
+    app.kubernetes.io/component: security
+    security.aml.io/compliance: "nist-csf"
+data:
+  trivy.yaml: |
+    cache:
+      dir: /tmp/trivy
+    db:
+      cache-dir: /tmp/trivy
+    security:
+      vuln-type: os,library
+      severity: HIGH,CRITICAL
+    format: json
+    output: /tmp/trivy-report.json
+    skip-dirs:
+      - /tmp
+      - /var/tmp
+    skip-files:
+      - "*.log"
+      - "*.tmp"
+
+---
+# Kube-Bench Configuration for CIS Benchmarking
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kube-bench-config
+  namespace: aml-kyc-agent
+  labels:
+    app.kubernetes.io/name: kube-bench
+    app.kubernetes.io/component: security
+    security.aml.io/compliance: "nist-csf"
+data:
+  config.yaml: |
+    targets:
+      - master
+      - node
+      - etcd
+      - policies
+    version: "1.6"
+    benchmark: "cis-1.6"
+    json: true
+    output: /tmp/kube-bench-report.json
+
+---
+# Kube-Hunter Configuration for Penetration Testing
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kube-hunter-config
+  namespace: aml-kyc-agent
+  labels:
+    app.kubernetes.io/name: kube-hunter
+    app.kubernetes.io/component: security
+    security.aml.io/compliance: "nist-csf"
+data:
+  config.yaml: |
+    remote: true
+    active: true
+    log: /tmp/kube-hunter.log
+    report: /tmp/kube-hunter-report.json
+    dispatch: json
+
+---
+# OPA Gatekeeper Configuration for Policy Enforcement
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gatekeeper-config
+  namespace: aml-kyc-agent
+  labels:
+    app.kubernetes.io/name: gatekeeper
+    app.kubernetes.io/component: security
+    security.aml.io/compliance: "nist-csf"
+data:
+  config.yaml: |
+    audit:
+      fromCache: enabled
+      onViolation: log
+    validation:
+      traces:
+        - user:
+            kind: "User"
+          kind: "Admission"
+    match:
+      - excludedNamespaces: ["kube-system", "gatekeeper-system"]
+        processes: ["*"]
+    admission:
+      - controllerName: "aml-security-controller"
+        enforcementAction: "deny"
+        processes: ["CREATE", "UPDATE"]
+
+---
+# Security Monitoring Configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: security-monitoring-config
+  namespace: aml-kyc-agent
+  labels:
+    app.kubernetes.io/name: security-monitoring
+    app.kubernetes.io/component: security
+    security.aml.io/compliance: "nist-csf"
+data:
+  monitoring.yaml: |
+    security_events:
+      enabled: true
+      log_level: info
+      output_format: json
+      retention_days: 90
+    
+    vulnerability_scanning:
+      enabled: true
+      schedule: "0 2 * * *"  # Daily at 2 AM
+      severity_threshold: HIGH
+      auto_remediate: false
+    
+    compliance_scanning:
+      enabled: true
+      schedule: "0 3 * * 0"  # Weekly on Sunday at 3 AM
+      frameworks:
+        - nist-csf
+        - cis-kubernetes
+        - pci-dss
+    
+    runtime_protection:
+      enabled: true
+      falco_enabled: true
+      trivy_enabled: true
+      kube_bench_enabled: true
+      kube_hunter_enabled: true
+    
+    alerting:
+      enabled: true
+      channels:
+        - email
+        - slack
+        - pagerduty
+      severity_levels:
+        - CRITICAL
+        - HIGH
+        - MEDIUM

@@ -1,0 +1,255 @@
+# SPIRE Registration Entries
+# AML-KYC Agent Zero Trust Identity Management
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: spire-registration-entries
+  namespace: spire-system
+  labels:
+    app.kubernetes.io/name: spire-registration
+    app.kubernetes.io/component: identity-management
+    app.kubernetes.io/part-of: aml-kyc-agent
+data:
+  registration-entries.yaml: |
+    # AML-KYC Backend Service Registration
+    - entry_id: "aml-kyc-backend"
+      spiffe_id: "spiffe://aml-advisory.company.com/aml-kyc/backend"
+      parent_id: "spiffe://aml-advisory.company.com/spire/agent"
+      selectors:
+        - type: "k8s:pod-label"
+          value: "app.kubernetes.io/name=aml-kyc-backend"
+        - type: "k8s:pod-label"
+          value: "app.kubernetes.io/component=backend"
+      ttl: 3600
+      admin: true
+      downstream: false
+      store_svid: true
+      hint: "AML-KYC Backend Service"
+      dns_names:
+        - "aml-kyc-backend.aml-kyc.svc.cluster.local"
+        - "aml-kyc-backend"
+      federates_with: []
+    
+    # AML-KYC Frontend Service Registration
+    - entry_id: "aml-kyc-frontend"
+      spiffe_id: "spiffe://aml-advisory.company.com/aml-kyc/frontend"
+      parent_id: "spiffe://aml-advisory.company.com/spire/agent"
+      selectors:
+        - type: "k8s:pod-label"
+          value: "app.kubernetes.io/name=aml-kyc-frontend"
+        - type: "k8s:pod-label"
+          value: "app.kubernetes.io/component=frontend"
+      ttl: 3600
+      admin: false
+      downstream: false
+      store_svid: true
+      hint: "AML-KYC Frontend Service"
+      dns_names:
+        - "aml-kyc-frontend.aml-kyc.svc.cluster.local"
+        - "aml-kyc-frontend"
+      federates_with: []
+    
+    # AML-KYC LLM Service Registration
+    - entry_id: "aml-kyc-llm"
+      spiffe_id: "spiffe://aml-advisory.company.com/aml-kyc/llm"
+      parent_id: "spiffe://aml-advisory.company.com/spire/agent"
+      selectors:
+        - type: "k8s:pod-label"
+          value: "app.kubernetes.io/name=aml-kyc-llm"
+        - type: "k8s:pod-label"
+          value: "app.kubernetes.io/component=llm"
+      ttl: 3600
+      admin: false
+      downstream: false
+      store_svid: true
+      hint: "AML-KYC LLM Service"
+      dns_names:
+        - "aml-kyc-llm.aml-kyc.svc.cluster.local"
+        - "aml-kyc-llm"
+      federates_with: []
+    
+    # AML-KYC Database Service Registration
+    - entry_id: "aml-kyc-database"
+      spiffe_id: "spiffe://aml-advisory.company.com/aml-kyc/database"
+      parent_id: "spiffe://aml-advisory.company.com/spire/agent"
+      selectors:
+        - type: "k8s:pod-label"
+          value: "app.kubernetes.io/name=aml-kyc-database"
+        - type: "k8s:pod-label"
+          value: "app.kubernetes.io/component=database"
+      ttl: 3600
+      admin: false
+      downstream: false
+      store_svid: true
+      hint: "AML-KYC Database Service"
+      dns_names:
+        - "aml-kyc-database.aml-kyc.svc.cluster.local"
+        - "aml-kyc-database"
+      federates_with: []
+    
+    # AML-KYC Monitoring Service Registration
+    - entry_id: "aml-kyc-monitoring"
+      spiffe_id: "spiffe://aml-advisory.company.com/aml-kyc/monitoring"
+      parent_id: "spiffe://aml-advisory.company.com/spire/agent"
+      selectors:
+        - type: "k8s:pod-label"
+          value: "app.kubernetes.io/name=aml-kyc-monitoring"
+        - type: "k8s:pod-label"
+          value: "app.kubernetes.io/component=monitoring"
+      ttl: 3600
+      admin: false
+      downstream: false
+      store_svid: true
+      hint: "AML-KYC Monitoring Service"
+      dns_names:
+        - "aml-kyc-monitoring.aml-kyc.svc.cluster.local"
+        - "aml-kyc-monitoring"
+      federates_with: []
+    
+    # AML-KYC Admin Service Registration
+    - entry_id: "aml-kyc-admin"
+      spiffe_id: "spiffe://aml-advisory.company.com/aml-kyc/admin"
+      parent_id: "spiffe://aml-advisory.company.com/spire/agent"
+      selectors:
+        - type: "k8s:pod-label"
+          value: "app.kubernetes.io/name=aml-kyc-admin"
+        - type: "k8s:pod-label"
+          value: "app.kubernetes.io/component=admin"
+      ttl: 1800
+      admin: true
+      downstream: false
+      store_svid: true
+      hint: "AML-KYC Admin Service"
+      dns_names:
+        - "aml-kyc-admin.aml-kyc.svc.cluster.local"
+        - "aml-kyc-admin"
+      federates_with: []
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: spire-registration-setup
+  namespace: spire-system
+  labels:
+    app.kubernetes.io/name: spire-registration-setup
+    app.kubernetes.io/component: identity-management
+    app.kubernetes.io/part-of: aml-kyc-agent
+spec:
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: spire-registration-setup
+        app.kubernetes.io/component: identity-management
+        app.kubernetes.io/part-of: aml-kyc-agent
+    spec:
+      restartPolicy: OnFailure
+      containers:
+      - name: spire-registration-setup
+        image: gcr.io/spiffe-io/spire-server:1.8.0
+        command:
+        - /bin/sh
+        - -c
+        - |
+          # Wait for SPIRE server to be ready
+          until nc -z spire-server.spire-system.svc.cluster.local 8081; do
+            echo "Waiting for SPIRE server..."
+            sleep 5
+          done
+          
+          # Create registration entries
+          echo "Creating SPIRE registration entries..."
+          
+          # AML-KYC Backend Service
+          spire-server entry create \
+            -spiffeID "spiffe://aml-advisory.company.com/aml-kyc/backend" \
+            -parentID "spiffe://aml-advisory.company.com/spire/agent" \
+            -selector "k8s:pod-label:app.kubernetes.io/name=aml-kyc-backend" \
+            -selector "k8s:pod-label:app.kubernetes.io/component=backend" \
+            -ttl 3600 \
+            -admin \
+            -storeSVID \
+            -dns "aml-kyc-backend.aml-kyc.svc.cluster.local" \
+            -dns "aml-kyc-backend"
+          
+          # AML-KYC Frontend Service
+          spire-server entry create \
+            -spiffeID "spiffe://aml-advisory.company.com/aml-kyc/frontend" \
+            -parentID "spiffe://aml-advisory.company.com/spire/agent" \
+            -selector "k8s:pod-label:app.kubernetes.io/name=aml-kyc-frontend" \
+            -selector "k8s:pod-label:app.kubernetes.io/component=frontend" \
+            -ttl 3600 \
+            -storeSVID \
+            -dns "aml-kyc-frontend.aml-kyc.svc.cluster.local" \
+            -dns "aml-kyc-frontend"
+          
+          # AML-KYC LLM Service
+          spire-server entry create \
+            -spiffeID "spiffe://aml-advisory.company.com/aml-kyc/llm" \
+            -parentID "spiffe://aml-advisory.company.com/spire/agent" \
+            -selector "k8s:pod-label:app.kubernetes.io/name=aml-kyc-llm" \
+            -selector "k8s:pod-label:app.kubernetes.io/component=llm" \
+            -ttl 3600 \
+            -storeSVID \
+            -dns "aml-kyc-llm.aml-kyc.svc.cluster.local" \
+            -dns "aml-kyc-llm"
+          
+          # AML-KYC Database Service
+          spire-server entry create \
+            -spiffeID "spiffe://aml-advisory.company.com/aml-kyc/database" \
+            -parentID "spiffe://aml-advisory.company.com/spire/agent" \
+            -selector "k8s:pod-label:app.kubernetes.io/name=aml-kyc-database" \
+            -selector "k8s:pod-label:app.kubernetes.io/component=database" \
+            -ttl 3600 \
+            -storeSVID \
+            -dns "aml-kyc-database.aml-kyc.svc.cluster.local" \
+            -dns "aml-kyc-database"
+          
+          # AML-KYC Monitoring Service
+          spire-server entry create \
+            -spiffeID "spiffe://aml-advisory.company.com/aml-kyc/monitoring" \
+            -parentID "spiffe://aml-advisory.company.com/spire/agent" \
+            -selector "k8s:pod-label:app.kubernetes.io/name=aml-kyc-monitoring" \
+            -selector "k8s:pod-label:app.kubernetes.io/component=monitoring" \
+            -ttl 3600 \
+            -storeSVID \
+            -dns "aml-kyc-monitoring.aml-kyc.svc.cluster.local" \
+            -dns "aml-kyc-monitoring"
+          
+          # AML-KYC Admin Service
+          spire-server entry create \
+            -spiffeID "spiffe://aml-advisory.company.com/aml-kyc/admin" \
+            -parentID "spiffe://aml-advisory.company.com/spire/agent" \
+            -selector "k8s:pod-label:app.kubernetes.io/name=aml-kyc-admin" \
+            -selector "k8s:pod-label:app.kubernetes.io/component=admin" \
+            -ttl 1800 \
+            -admin \
+            -storeSVID \
+            -dns "aml-kyc-admin.aml-kyc.svc.cluster.local" \
+            -dns "aml-kyc-admin"
+          
+          echo "SPIRE registration entries created successfully"
+        env:
+        - name: SPIRE_SERVER_ADDRESS
+          value: "spire-server.spire-system.svc.cluster.local:8081"
+        - name: SPIRE_SERVER_SOCKET
+          value: "/tmp/spire-server.sock"
+        volumeMounts:
+        - name: spire-server-socket
+          mountPath: /tmp/spire-server.sock
+        - name: spire-config
+          mountPath: /opt/spire/conf
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            cpu: 200m
+            memory: 256Mi
+      volumes:
+      - name: spire-server-socket
+        emptyDir: {}
+      - name: spire-config
+        configMap:
+          name: spire-server-config
+      serviceAccountName: spire-server

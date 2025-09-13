@@ -1,0 +1,529 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User Management
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  role      UserRole @default(COMPLIANCE_OFFICER)
+  organization String
+  jurisdiction String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  sessions     Session[]
+  conversations Conversation[]
+  auditLogs    AuditLog[]
+  feedback     Feedback[]
+
+  @@map("users")
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+// Conversation Management
+model Conversation {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String
+  status    ConversationStatus @default(ACTIVE)
+  metadata  Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages Message[]
+
+  @@map("conversations")
+}
+
+model Message {
+  id             String   @id @default(cuid())
+  conversationId String
+  role           MessageRole
+  content        String
+  metadata       Json?
+  createdAt      DateTime @default(now())
+
+  // Relations
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  briefs       Brief[]
+
+  @@map("messages")
+}
+
+// Advisory System
+model Brief {
+  id             String      @id @default(cuid())
+  messageId      String
+  type           BriefType
+  title          String
+  content        String
+  reasoning      String?
+  confidence     ConfidenceLevel
+  status         BriefStatus @default(STREAMING)
+  version        String      @default("1.0")
+  metadata       Json?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  // Relations
+  message        Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  evidence       Evidence[]
+  followUpSuggestions FollowUpSuggestion[]
+  feedback       Feedback[]
+
+  @@map("briefs")
+}
+
+model Evidence {
+  id              String   @id @default(cuid())
+  briefId         String
+  source          String
+  snippet         String
+  jurisdiction    String
+  trustScore      Float
+  relevanceScore  Float
+  url             String?
+  metadata        Json?
+  createdAt       DateTime @default(now())
+
+  // Relations
+  brief Brief @relation(fields: [briefId], references: [id], onDelete: Cascade)
+
+  @@map("evidence")
+}
+
+model FollowUpSuggestion {
+  id         String   @id @default(cuid())
+  briefId    String
+  text       String
+  type       SuggestionType
+  confidence ConfidenceLevel
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  // Relations
+  brief Brief @relation(fields: [briefId], references: [id], onDelete: Cascade)
+
+  @@map("follow_up_suggestions")
+}
+
+// Knowledge Management
+model RegulatoryDocument {
+  id          String   @id @default(cuid())
+  title       String
+  content     String
+  jurisdiction String
+  regulation  String
+  section     String?
+  version     String
+  lastUpdated DateTime
+  metadata    Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("regulatory_documents")
+}
+
+model RegulatoryDataSource {
+  id              String   @id @default(cuid())
+  name            String
+  url             String
+  jurisdiction    String
+  type            String   // API, SCRAPE, RSS, JSON
+  parser          String
+  updateFrequency String   // cron expression
+  lastChecked     DateTime?
+  lastUpdated     DateTime?
+  isActive        Boolean  @default(true)
+  metadata        Json?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("regulatory_data_sources")
+}
+
+model EnforcementAction {
+  id          String   @id @default(cuid())
+  title       String
+  description String
+  jurisdiction String
+  regulator   String
+  date        DateTime
+  amount      Float?
+  metadata    Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("enforcement_actions")
+}
+
+// Risk Assessment
+model RiskAssessment {
+  id             String   @id @default(cuid())
+  userId         String
+  entityType     EntityType
+  entityId       String
+  riskScore      Float
+  riskFactors    Json
+  assessmentDate DateTime @default(now())
+  metadata       Json?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@map("risk_assessments")
+}
+
+// Transaction Monitoring
+model Transaction {
+  id              String   @id @default(cuid())
+  userId          String
+  amount          Float
+  currency        String
+  transactionType String
+  counterparty    String?
+  jurisdiction    String
+  riskScore       Float?
+  status          TransactionStatus @default(PENDING)
+  metadata        Json?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("transactions")
+}
+
+model Alert {
+  id              String   @id @default(cuid())
+  userId          String
+  transactionId   String?
+  type            AlertType
+  severity        AlertSeverity
+  title           String
+  description     String
+  status          AlertStatus @default(OPEN)
+  resolution      String?
+  metadata        Json?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("alerts")
+}
+
+// Sanctions Screening
+model SanctionsCheck {
+  id              String   @id @default(cuid())
+  userId          String
+  entityName      String
+  entityType      String
+  jurisdiction    String
+  matchFound      Boolean
+  matchDetails    Json?
+  checkDate       DateTime @default(now())
+  metadata        Json?
+
+  @@map("sanctions_checks")
+}
+
+// Feedback System
+model Feedback {
+  id          String   @id @default(cuid())
+  userId      String
+  briefId     String?
+  type        FeedbackType
+  rating      Int?
+  comment     String?
+  metadata    Json?
+  createdAt   DateTime @default(now())
+
+  // Relations
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  brief Brief? @relation(fields: [briefId], references: [id], onDelete: Cascade)
+
+  @@map("feedback")
+}
+
+// Audit System
+model AuditLog {
+  id          String   @id @default(cuid())
+  userId      String?
+  action      String
+  resource    String
+  resourceId  String?
+  details     Json?
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+
+  // Relations
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@map("audit_logs")
+}
+
+// Enums
+enum UserRole {
+  ADMIN
+  COMPLIANCE_OFFICER
+  RISK_MANAGER
+  AUDITOR
+  VIEWER
+}
+
+enum ConversationStatus {
+  ACTIVE
+  ARCHIVED
+  DELETED
+}
+
+enum MessageRole {
+  USER
+  ASSISTANT
+  SYSTEM
+}
+
+enum BriefType {
+  RECOMMENDATION
+  ANALYSIS
+  WORKFLOW
+  ALERT
+}
+
+enum ConfidenceLevel {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum BriefStatus {
+  STREAMING
+  COMPLETED
+  ERROR
+}
+
+enum SuggestionType {
+  CLARIFICATION
+  WORKFLOW
+  ANALYSIS
+  RECOMMENDATION
+}
+
+enum EntityType {
+  CUSTOMER
+  TRANSACTION
+  ACCOUNT
+  PRODUCT
+}
+
+enum TransactionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  FLAGGED
+}
+
+enum AlertType {
+  SUSPICIOUS_ACTIVITY
+  SANCTIONS_MATCH
+  HIGH_RISK_CUSTOMER
+  UNUSUAL_PATTERN
+  COMPLIANCE_VIOLATION
+}
+
+enum AlertSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum AlertStatus {
+  OPEN
+  INVESTIGATING
+  RESOLVED
+  FALSE_POSITIVE
+}
+
+enum FeedbackType {
+  ADVISORY_QUALITY
+  SYSTEM_USABILITY
+  FEATURE_REQUEST
+  BUG_REPORT
+}
+
+// NIST Cybersecurity Framework Models
+model Asset {
+  id                String   @id @default(cuid())
+  name              String
+  type              String   // server, workstation, network-device, etc.
+  category          String   // infrastructure, application, data, etc.
+  status            String   // active, inactive, maintenance, decommissioned
+  location          Json     // environment, datacenter, region, etc.
+  owner             String
+  criticality       String   // low, medium, high, critical
+  dataClassification String  // public, internal, confidential, restricted
+  lastDiscovered    DateTime
+  lastUpdated       DateTime @updatedAt
+  attributes        Json     // technical attributes
+  vulnerabilities   Json     // asset vulnerabilities
+  compliance        Json     // compliance information
+  createdAt         DateTime @default(now())
+
+  @@map("assets")
+}
+
+model AssetInventory {
+  id          String   @id @default(cuid())
+  timestamp   DateTime
+  totalCount  Int
+  categories  String[]
+  metadata    Json
+  assets      Json
+  createdAt   DateTime @default(now())
+
+  @@map("asset_inventories")
+}
+
+model RiskAssessment {
+  id                        String   @id @default(cuid())
+  title                     String
+  description               String
+  framework                 String
+  version                   String
+  status                    String   // planned, in-progress, completed, cancelled
+  startDate                 DateTime
+  endDate                   DateTime?
+  assessor                  String
+  riskLevel                 String   // low, medium, high, critical
+  threats                   Json
+  vulnerabilities           Json
+  impacts                   Json
+  riskMatrix                Json
+  mitigationRecommendations Json
+  oscalDocument             Json
+  metadata                  Json
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
+
+  @@map("risk_assessments")
+}
+
+model ProtectionStatus {
+  id                String   @id @default(cuid())
+  overallStatus     String   // compliant, non-compliant, partial, not-assessed
+  controlStatus     Json
+  nextActions       Json
+  lastAssessment    DateTime
+  nextAssessment    DateTime
+  complianceScore   Int
+  metadata          Json
+  createdAt         DateTime @default(now())
+
+  @@map("protection_status")
+}
+
+model DetectionResults {
+  id                    String   @id @default(cuid())
+  scanId                String   @unique
+  timestamp             DateTime
+  anomaliesDetected     Json
+  securityEvents        Json
+  continuousMonitoring  Json
+  detectionProcesses    Json
+  summary               Json
+  recommendations       Json
+  createdAt             DateTime @default(now())
+
+  @@map("detection_results")
+}
+
+model OSCALAssessment {
+  id          String   @id @default(cuid())
+  title       String
+  description String
+  type        String   // risk-assessment, control-assessment, system-assessment
+  framework   String
+  version     String
+  status      String   // planned, in-progress, completed, cancelled
+  startDate   DateTime
+  endDate     DateTime?
+  assessor    String
+  results     Json
+  metadata    Json
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("oscal_assessments")
+}
+
+model OSCALControl {
+  id                    String   @id @default(cuid())
+  title                 String
+  description           String
+  category              String
+  function              String   // IDENTIFY, PROTECT, DETECT, RESPOND, RECOVER
+  subcategory           String
+  implementationStatus  String   // implemented, partial, not-implemented, not-applicable
+  evidence              Json
+  lastAssessed          DateTime
+  nextAssessment        DateTime
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@map("oscal_controls")
+}
+
+model OpenSCAPScanResult {
+  id          String   @id @default(cuid())
+  scanId      String   @unique
+  profileId   String
+  target      String
+  startTime   DateTime
+  endTime     DateTime
+  status      String   // completed, failed, partial
+  summary     Json
+  report      String
+  errors      String[]
+  results     Json
+  createdAt   DateTime @default(now())
+
+  @@map("openscap_scan_results")
+}
+
+model NISTControlMapping {
+  id              String   @id @default(cuid())
+  controlId       String
+  controlCategory String
+  assetCount      Int
+  assetIds        String[]
+  lastMapped      DateTime
+  createdAt       DateTime @default(now())
+
+  @@map("nist_control_mappings")
+}
+

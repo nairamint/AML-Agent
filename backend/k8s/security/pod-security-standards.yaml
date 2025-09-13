@@ -1,0 +1,391 @@
+# Production Kubernetes Security Policies - Pod Security Standards
+# Comprehensive pod security policies for AML-KYC Agent deployment
+
+---
+# Pod Security Standards Configuration
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: aml-kyc-agent
+  labels:
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+    security.aml.io/compliance: "nist-csf"
+    security.aml.io/data-classification: "confidential"
+
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: aml-backend
+  labels:
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+    security.aml.io/compliance: "nist-csf"
+    security.aml.io/data-classification: "confidential"
+
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: aml-frontend
+  labels:
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+    security.aml.io/compliance: "nist-csf"
+    security.aml.io/data-classification: "internal"
+
+---
+# Pod Security Policy for AML Backend
+apiVersion: policy/v1beta1
+kind: PodSecurityPolicy
+metadata:
+  name: aml-backend-psp
+  namespace: aml-backend
+  labels:
+    app.kubernetes.io/name: aml-backend
+    app.kubernetes.io/component: security
+    security.aml.io/compliance: "nist-csf"
+spec:
+  privileged: false
+  allowPrivilegeEscalation: false
+  requiredDropCapabilities:
+    - ALL
+  volumes:
+    - 'configMap'
+    - 'emptyDir'
+    - 'projected'
+    - 'secret'
+    - 'downwardAPI'
+    - 'persistentVolumeClaim'
+  runAsUser:
+    rule: 'MustRunAsNonRoot'
+  runAsGroup:
+    rule: 'MustRunAs'
+    ranges:
+      - min: 1000
+        max: 65535
+  fsGroup:
+    rule: 'MustRunAs'
+    ranges:
+      - min: 1000
+        max: 65535
+  seLinux:
+    rule: 'RunAsAny'
+  readOnlyRootFilesystem: true
+  hostNetwork: false
+  hostIPC: false
+  hostPID: false
+  hostPorts:
+    - min: 0
+      max: 0
+
+---
+# Pod Security Policy for AML Frontend
+apiVersion: policy/v1beta1
+kind: PodSecurityPolicy
+metadata:
+  name: aml-frontend-psp
+  namespace: aml-frontend
+  labels:
+    app.kubernetes.io/name: aml-frontend
+    app.kubernetes.io/component: security
+    security.aml.io/compliance: "nist-csf"
+spec:
+  privileged: false
+  allowPrivilegeEscalation: false
+  requiredDropCapabilities:
+    - ALL
+  volumes:
+    - 'configMap'
+    - 'emptyDir'
+    - 'projected'
+    - 'secret'
+    - 'downwardAPI'
+    - 'persistentVolumeClaim'
+  runAsUser:
+    rule: 'MustRunAsNonRoot'
+  runAsGroup:
+    rule: 'MustRunAs'
+    ranges:
+      - min: 1000
+        max: 65535
+  fsGroup:
+    rule: 'MustRunAs'
+    ranges:
+      - min: 1000
+        max: 65535
+  seLinux:
+    rule: 'RunAsAny'
+  readOnlyRootFilesystem: true
+  hostNetwork: false
+  hostIPC: false
+  hostPID: false
+  hostPorts:
+    - min: 0
+      max: 0
+
+---
+# Security Context Constraints for AML Backend
+apiVersion: security.openshift.io/v1
+kind: SecurityContextConstraints
+metadata:
+  name: aml-backend-scc
+  labels:
+    app.kubernetes.io/name: aml-backend
+    app.kubernetes.io/component: security
+    security.aml.io/compliance: "nist-csf"
+allowHostDirVolumePlugin: false
+allowHostIPC: false
+allowHostNetwork: false
+allowHostPID: false
+allowHostPorts: false
+allowPrivilegeEscalation: false
+allowPrivilegedContainer: false
+allowedCapabilities: null
+defaultAddCapabilities: null
+fsGroup:
+  type: MustRunAs
+  ranges:
+    - min: 1000
+      max: 65535
+readOnlyRootFilesystem: true
+requiredDropCapabilities:
+  - ALL
+runAsUser:
+  type: MustRunAsNonRoot
+  uid: 1000
+seLinuxContext:
+  type: MustRunAs
+volumes:
+  - configMap
+  - downwardAPI
+  - emptyDir
+  - persistentVolumeClaim
+  - projected
+  - secret
+
+---
+# Security Context Constraints for AML Frontend
+apiVersion: security.openshift.io/v1
+kind: SecurityContextConstraints
+metadata:
+  name: aml-frontend-scc
+  labels:
+    app.kubernetes.io/name: aml-frontend
+    app.kubernetes.io/component: security
+    security.aml.io/compliance: "nist-csf"
+allowHostDirVolumePlugin: false
+allowHostIPC: false
+allowHostNetwork: false
+allowHostPID: false
+allowHostPorts: false
+allowPrivilegeEscalation: false
+allowPrivilegedContainer: false
+allowedCapabilities: null
+defaultAddCapabilities: null
+fsGroup:
+  type: MustRunAs
+  ranges:
+    - min: 1000
+      max: 65535
+readOnlyRootFilesystem: true
+requiredDropCapabilities:
+  - ALL
+runAsUser:
+  type: MustRunAsNonRoot
+  uid: 1000
+seLinuxContext:
+  type: MustRunAs
+volumes:
+  - configMap
+  - downwardAPI
+  - emptyDir
+  - persistentVolumeClaim
+  - projected
+  - secret
+
+---
+# Pod Security Policy for Database
+apiVersion: policy/v1beta1
+kind: PodSecurityPolicy
+metadata:
+  name: aml-database-psp
+  namespace: aml-backend
+  labels:
+    app.kubernetes.io/name: aml-database
+    app.kubernetes.io/component: security
+    security.aml.io/compliance: "nist-csf"
+spec:
+  privileged: false
+  allowPrivilegeEscalation: false
+  requiredDropCapabilities:
+    - ALL
+  volumes:
+    - 'configMap'
+    - 'emptyDir'
+    - 'projected'
+    - 'secret'
+    - 'downwardAPI'
+    - 'persistentVolumeClaim'
+  runAsUser:
+    rule: 'MustRunAsNonRoot'
+  runAsGroup:
+    rule: 'MustRunAs'
+    ranges:
+      - min: 1000
+        max: 65535
+  fsGroup:
+    rule: 'MustRunAs'
+    ranges:
+      - min: 1000
+        max: 65535
+  seLinux:
+    rule: 'RunAsAny'
+  readOnlyRootFilesystem: false
+  hostNetwork: false
+  hostIPC: false
+  hostPID: false
+  hostPorts:
+    - min: 0
+      max: 0
+
+---
+# Pod Security Policy for Monitoring
+apiVersion: policy/v1beta1
+kind: PodSecurityPolicy
+metadata:
+  name: aml-monitoring-psp
+  namespace: aml-kyc-agent
+  labels:
+    app.kubernetes.io/name: aml-monitoring
+    app.kubernetes.io/component: security
+    security.aml.io/compliance: "nist-csf"
+spec:
+  privileged: false
+  allowPrivilegeEscalation: false
+  requiredDropCapabilities:
+    - ALL
+  volumes:
+    - 'configMap'
+    - 'emptyDir'
+    - 'projected'
+    - 'secret'
+    - 'downwardAPI'
+    - 'persistentVolumeClaim'
+    - 'hostPath'
+  runAsUser:
+    rule: 'MustRunAsNonRoot'
+  runAsGroup:
+    rule: 'MustRunAs'
+    ranges:
+      - min: 1000
+        max: 65535
+  fsGroup:
+    rule: 'MustRunAs'
+    ranges:
+      - min: 1000
+        max: 65535
+  seLinux:
+    rule: 'RunAsAny'
+  readOnlyRootFilesystem: true
+  hostNetwork: false
+  hostIPC: false
+  hostPID: false
+  hostPorts:
+    - min: 0
+      max: 0
+
+---
+# Pod Security Policy for Security Tools
+apiVersion: policy/v1beta1
+kind: PodSecurityPolicy
+metadata:
+  name: aml-security-tools-psp
+  namespace: aml-kyc-agent
+  labels:
+    app.kubernetes.io/name: aml-security-tools
+    app.kubernetes.io/component: security
+    security.aml.io/compliance: "nist-csf"
+spec:
+  privileged: false
+  allowPrivilegeEscalation: false
+  requiredDropCapabilities:
+    - ALL
+  volumes:
+    - 'configMap'
+    - 'emptyDir'
+    - 'projected'
+    - 'secret'
+    - 'downwardAPI'
+    - 'persistentVolumeClaim'
+    - 'hostPath'
+  runAsUser:
+    rule: 'MustRunAsNonRoot'
+  runAsGroup:
+    rule: 'MustRunAs'
+    ranges:
+      - min: 1000
+        max: 65535
+  fsGroup:
+    rule: 'MustRunAs'
+    ranges:
+      - min: 1000
+        max: 65535
+  seLinux:
+    rule: 'RunAsAny'
+  readOnlyRootFilesystem: true
+  hostNetwork: false
+  hostIPC: false
+  hostPID: false
+  hostPorts:
+    - min: 0
+      max: 0
+
+---
+# Pod Security Policy for Compliance Tools
+apiVersion: policy/v1beta1
+kind: PodSecurityPolicy
+metadata:
+  name: aml-compliance-tools-psp
+  namespace: aml-kyc-agent
+  labels:
+    app.kubernetes.io/name: aml-compliance-tools
+    app.kubernetes.io/component: security
+    security.aml.io/compliance: "nist-csf"
+spec:
+  privileged: false
+  allowPrivilegeEscalation: false
+  requiredDropCapabilities:
+    - ALL
+  volumes:
+    - 'configMap'
+    - 'emptyDir'
+    - 'projected'
+    - 'secret'
+    - 'downwardAPI'
+    - 'persistentVolumeClaim'
+  runAsUser:
+    rule: 'MustRunAsNonRoot'
+  runAsGroup:
+    rule: 'MustRunAs'
+    ranges:
+      - min: 1000
+        max: 65535
+  fsGroup:
+    rule: 'MustRunAs'
+    ranges:
+      - min: 1000
+        max: 65535
+  seLinux:
+    rule: 'RunAsAny'
+  readOnlyRootFilesystem: true
+  hostNetwork: false
+  hostIPC: false
+  hostPID: false
+  hostPorts:
+    - min: 0
+      max: 0

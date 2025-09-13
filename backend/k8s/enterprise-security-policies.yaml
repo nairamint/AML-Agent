@@ -1,0 +1,538 @@
+# Enterprise Kubernetes Security Policies
+# Implements comprehensive security controls for production deployment
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: aml-kyc-advisory
+  labels:
+    name: aml-kyc-advisory
+    security-level: high
+    compliance: enterprise
+    data-classification: restricted
+---
+# Network Policy - Restrict pod-to-pod communication
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: aml-kyc-network-policy
+  namespace: aml-kyc-advisory
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: aml-kyc-advisory
+    - podSelector:
+        matchLabels:
+          app: aml-kyc-backend
+    ports:
+    - protocol: TCP
+      port: 3000
+  egress:
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: aml-kyc-advisory
+    - podSelector:
+        matchLabels:
+          app: aml-kyc-backend
+    ports:
+    - protocol: TCP
+      port: 3000
+  - to: [] # Allow external API calls
+    ports:
+    - protocol: TCP
+      port: 443
+    - protocol: TCP
+      port: 80
+---
+# Pod Security Policy - Enforce security standards
+apiVersion: policy/v1beta1
+kind: PodSecurityPolicy
+metadata:
+  name: aml-kyc-psp
+  namespace: aml-kyc-advisory
+spec:
+  privileged: false
+  allowPrivilegeEscalation: false
+  requiredDropCapabilities:
+    - ALL
+  volumes:
+    - 'configMap'
+    - 'emptyDir'
+    - 'projected'
+    - 'secret'
+    - 'downwardAPI'
+    - 'persistentVolumeClaim'
+  runAsUser:
+    rule: 'MustRunAsNonRoot'
+  seLinux:
+    rule: 'RunAsAny'
+  fsGroup:
+    rule: 'RunAsAny'
+  readOnlyRootFilesystem: true
+  hostNetwork: false
+  hostIPC: false
+  hostPID: false
+---
+# Security Context Constraints
+apiVersion: security.openshift.io/v1
+kind: SecurityContextConstraints
+metadata:
+  name: aml-kyc-scc
+allowHostDirVolumePlugin: false
+allowHostIPC: false
+allowHostNetwork: false
+allowHostPID: false
+allowHostPorts: false
+allowPrivilegedContainer: false
+allowedCapabilities: null
+defaultAddCapabilities: null
+fsGroup:
+  type: MustRunAs
+  ranges:
+  - min: 1000
+    max: 65535
+readOnlyRootFilesystem: true
+requiredDropCapabilities:
+- ALL
+runAsUser:
+  type: MustRunAsNonRoot
+seLinuxContext:
+  type: MustRunAs
+volumes:
+- configMap
+- downwardAPI
+- emptyDir
+- persistentVolumeClaim
+- projected
+- secret
+---
+# Resource Quotas
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: aml-kyc-quota
+  namespace: aml-kyc-advisory
+spec:
+  hard:
+    requests.cpu: "4"
+    requests.memory: 8Gi
+    limits.cpu: "8"
+    limits.memory: 16Gi
+    persistentvolumeclaims: "10"
+    pods: "20"
+    services: "10"
+---
+# Limit Ranges
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: aml-kyc-limits
+  namespace: aml-kyc-advisory
+spec:
+  limits:
+  - default:
+      cpu: "1"
+      memory: "2Gi"
+    defaultRequest:
+      cpu: "500m"
+      memory: "1Gi"
+    type: Container
+  - max:
+      cpu: "2"
+      memory: "4Gi"
+    min:
+      cpu: "100m"
+      memory: "128Mi"
+    type: Container
+---
+# Service Account
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: aml-kyc-backend
+  namespace: aml-kyc-advisory
+  labels:
+    app: aml-kyc-backend
+---
+# Role-Based Access Control
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: aml-kyc-backend-role
+  namespace: aml-kyc-advisory
+rules:
+- apiGroups: [""]
+  resources: ["configmaps", "secrets"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: aml-kyc-backend-rolebinding
+  namespace: aml-kyc-advisory
+subjects:
+- kind: ServiceAccount
+  name: aml-kyc-backend
+  namespace: aml-kyc-advisory
+roleRef:
+  kind: Role
+  name: aml-kyc-backend-role
+  apiGroup: rbac.authorization.k8s.io
+---
+# Pod Disruption Budget
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: aml-kyc-backend-pdb
+  namespace: aml-kyc-advisory
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: aml-kyc-backend
+---
+# Horizontal Pod Autoscaler
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: aml-kyc-backend-hpa
+  namespace: aml-kyc-advisory
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: aml-kyc-backend
+  minReplicas: 3
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+---
+# Vertical Pod Autoscaler
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: aml-kyc-backend-vpa
+  namespace: aml-kyc-advisory
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: aml-kyc-backend
+  updatePolicy:
+    updateMode: "Auto"
+  resourcePolicy:
+    containerPolicies:
+    - containerName: backend
+      minAllowed:
+        cpu: 100m
+        memory: 128Mi
+      maxAllowed:
+        cpu: 2
+        memory: 4Gi
+---
+# Service Mesh Configuration
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: aml-kyc-backend-dr
+  namespace: aml-kyc-advisory
+spec:
+  host: aml-kyc-backend
+  trafficPolicy:
+    tls:
+      mode: ISTIO_MUTUAL
+    connectionPool:
+      tcp:
+        maxConnections: 100
+      http:
+        http1MaxPendingRequests: 50
+        maxRequestsPerConnection: 10
+    circuitBreaker:
+      consecutiveErrors: 5
+      interval: 30s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 50
+---
+# Istio Gateway
+apiVersion: networking.istio.io/v1alpha3
+kind: Gateway
+metadata:
+  name: aml-kyc-gateway
+  namespace: aml-kyc-advisory
+spec:
+  selector:
+    istio: ingressgateway
+  servers:
+  - port:
+      number: 443
+      name: https
+      protocol: HTTPS
+    tls:
+      mode: SIMPLE
+      credentialName: aml-kyc-tls
+    hosts:
+    - api.aml-kyc-advisory.com
+---
+# Istio Virtual Service
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: aml-kyc-vs
+  namespace: aml-kyc-advisory
+spec:
+  hosts:
+  - api.aml-kyc-advisory.com
+  gateways:
+  - aml-kyc-gateway
+  http:
+  - match:
+    - uri:
+        prefix: /api/
+    route:
+    - destination:
+        host: aml-kyc-backend
+        port:
+          number: 3000
+    timeout: 30s
+    retries:
+      attempts: 3
+      perTryTimeout: 10s
+---
+# Istio Authorization Policy
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: aml-kyc-authz
+  namespace: aml-kyc-advisory
+spec:
+  selector:
+    matchLabels:
+      app: aml-kyc-backend
+  rules:
+  - from:
+    - source:
+        principals: ["cluster.local/ns/aml-kyc-advisory/sa/aml-kyc-backend"]
+    to:
+    - operation:
+        methods: ["GET", "POST", "PUT", "DELETE"]
+        paths: ["/api/*"]
+---
+# Istio Peer Authentication
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: aml-kyc-peer-auth
+  namespace: aml-kyc-advisory
+spec:
+  selector:
+    matchLabels:
+      app: aml-kyc-backend
+  mtls:
+    mode: STRICT
+---
+# Istio Request Authentication
+apiVersion: security.istio.io/v1beta1
+kind: RequestAuthentication
+metadata:
+  name: aml-kyc-request-auth
+  namespace: aml-kyc-advisory
+spec:
+  selector:
+    matchLabels:
+      app: aml-kyc-backend
+  jwtRules:
+  - issuer: "https://auth.aml-kyc-advisory.com"
+    jwksUri: "https://auth.aml-kyc-advisory.com/.well-known/jwks.json"
+    audiences: ["aml-kyc-advisory"]
+    fromHeaders:
+    - name: "Authorization"
+      prefix: "Bearer "
+    fromParams:
+    - "access_token"
+---
+# Falco Security Rules
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: falco-rules
+  namespace: aml-kyc-advisory
+data:
+  falco_rules.yaml: |
+    - rule: Unauthorized Process in Container
+      desc: Detect unauthorized processes running in containers
+      condition: >
+        spawned_process and
+        container and
+        not proc.name in (node, npm, yarn, pm2)
+      output: >
+        Unauthorized process in container (user=%user.name command=%proc.cmdline
+        container_id=%container.id container_name=%container.name)
+      priority: WARNING
+      tags: [container, process]
+    
+    - rule: Suspicious Network Activity
+      desc: Detect suspicious network connections
+      condition: >
+        inbound_outbound and
+        container and
+        not fd.sockfamily in (unix, ip)
+      output: >
+        Suspicious network activity (user=%user.name connection=%fd.name
+        container_id=%container.id container_name=%container.name)
+      priority: WARNING
+      tags: [container, network]
+    
+    - rule: File System Access Violation
+      desc: Detect unauthorized file system access
+      condition: >
+        open_read and
+        container and
+        not proc.name in (node, npm, yarn, pm2)
+      output: >
+        File system access violation (user=%user.name file=%fd.name
+        container_id=%container.id container_name=%container.name)
+      priority: WARNING
+      tags: [container, filesystem]
+---
+# OPA Gatekeeper Policies
+apiVersion: templates.gatekeeper.sh/v1beta1
+kind: ConstraintTemplate
+metadata:
+  name: k8srequiredlabels
+spec:
+  crd:
+    spec:
+      names:
+        kind: K8sRequiredLabels
+      validation:
+        properties:
+          labels:
+            type: array
+            items:
+              type: string
+  targets:
+    - target: admission.k8s.gatekeeper.sh
+      rego: |
+        package k8srequiredlabels
+        
+        violation[{"msg": msg}] {
+          required := input.parameters.labels
+          provided := input.review.object.metadata.labels
+          missing := required[_]
+          not provided[missing]
+          msg := sprintf("Missing required label: %v", [missing])
+        }
+---
+apiVersion: config.gatekeeper.sh/v1alpha1
+kind: K8sRequiredLabels
+metadata:
+  name: aml-kyc-labels
+spec:
+  match:
+    kinds:
+      - apiGroups: ["apps"]
+        kinds: ["Deployment"]
+    namespaces: ["aml-kyc-advisory"]
+  parameters:
+    labels: ["app", "version", "security-level", "compliance"]
+---
+# Kyverno Policies
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: aml-kyc-security-policy
+spec:
+  validationFailureAction: enforce
+  background: true
+  rules:
+  - name: require-security-context
+    match:
+      any:
+      - resources:
+          kinds:
+          - Pod
+          namespaces:
+          - aml-kyc-advisory
+    validate:
+      message: "Security context is required"
+      pattern:
+        spec:
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: ">0"
+            seccompProfile:
+              type: RuntimeDefault
+  - name: require-resource-limits
+    match:
+      any:
+      - resources:
+          kinds:
+          - Pod
+          namespaces:
+          - aml-kyc-advisory
+    validate:
+      message: "Resource limits are required"
+      pattern:
+        spec:
+          containers:
+          - name: "*"
+            resources:
+              limits:
+                memory: "?*"
+                cpu: "?*"
+              requests:
+                memory: "?*"
+                cpu: "?*"
+  - name: disallow-privileged-containers
+    match:
+      any:
+      - resources:
+          kinds:
+          - Pod
+          namespaces:
+          - aml-kyc-advisory
+    validate:
+      message: "Privileged containers are not allowed"
+      pattern:
+        spec:
+          containers:
+          - name: "*"
+            securityContext:
+              privileged: false
+  - name: require-readonly-rootfs
+    match:
+      any:
+      - resources:
+          kinds:
+          - Pod
+          namespaces:
+          - aml-kyc-advisory
+    validate:
+      message: "Read-only root filesystem is required"
+      pattern:
+        spec:
+          containers:
+          - name: "*"
+            securityContext:
+              readOnlyRootFilesystem: true

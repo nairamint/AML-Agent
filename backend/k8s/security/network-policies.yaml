@@ -1,0 +1,740 @@
+# Production Kubernetes Security Policies - Network Policies
+# Comprehensive network segmentation and micro-segmentation for AML-KYC Agent
+
+---
+# Default Deny All Ingress Policy for AML Backend
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: aml-backend-deny-all-ingress
+  namespace: aml-backend
+  labels:
+    app.kubernetes.io/name: aml-backend
+    app.kubernetes.io/component: security
+    security.aml.io/compliance: "nist-csf"
+    security.aml.io/data-classification: "confidential"
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress: []
+  egress:
+    - to: []
+      ports:
+        - protocol: TCP
+          port: 53
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 443
+        - protocol: TCP
+          port: 80
+
+---
+# Default Deny All Ingress Policy for AML Frontend
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: aml-frontend-deny-all-ingress
+  namespace: aml-frontend
+  labels:
+    app.kubernetes.io/name: aml-frontend
+    app.kubernetes.io/component: security
+    security.aml.io/compliance: "nist-csf"
+    security.aml.io/data-classification: "internal"
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress: []
+  egress:
+    - to: []
+      ports:
+        - protocol: TCP
+          port: 53
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 443
+        - protocol: TCP
+          port: 80
+
+---
+# Default Deny All Ingress Policy for AML KYC Agent
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: aml-kyc-agent-deny-all-ingress
+  namespace: aml-kyc-agent
+  labels:
+    app.kubernetes.io/name: aml-kyc-agent
+    app.kubernetes.io/component: security
+    security.aml.io/compliance: "nist-csf"
+    security.aml.io/data-classification: "confidential"
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress: []
+  egress:
+    - to: []
+      ports:
+        - protocol: TCP
+          port: 53
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 443
+        - protocol: TCP
+          port: 80
+
+---
+# AML Backend API Network Policy
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: aml-backend-api-policy
+  namespace: aml-backend
+  labels:
+    app.kubernetes.io/name: aml-backend
+    app.kubernetes.io/component: api
+    security.aml.io/compliance: "nist-csf"
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: aml-backend
+      app.kubernetes.io/component: api
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: aml-frontend
+        - namespaceSelector:
+            matchLabels:
+              name: aml-kyc-agent
+        - namespaceSelector:
+            matchLabels:
+              name: istio-system
+      ports:
+        - protocol: TCP
+          port: 8080
+        - protocol: TCP
+          port: 8443
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: aml-monitoring
+      ports:
+        - protocol: TCP
+          port: 9090
+  egress:
+    - to: []
+      ports:
+        - protocol: TCP
+          port: 53
+        - protocol: UDP
+          port: 53
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: aml-backend
+      ports:
+        - protocol: TCP
+          port: 5432
+        - protocol: TCP
+          port: 6379
+        - protocol: TCP
+          port: 9200
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: aml-kyc-agent
+      ports:
+        - protocol: TCP
+          port: 8080
+        - protocol: TCP
+          port: 8443
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: aml-monitoring
+      ports:
+        - protocol: TCP
+          port: 9090
+        - protocol: TCP
+          port: 3000
+        - protocol: TCP
+          port: 16686
+    - to: []
+      ports:
+        - protocol: TCP
+          port: 443
+        - protocol: TCP
+          port: 80
+
+---
+# AML Frontend Network Policy
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: aml-frontend-policy
+  namespace: aml-frontend
+  labels:
+    app.kubernetes.io/name: aml-frontend
+    app.kubernetes.io/component: frontend
+    security.aml.io/compliance: "nist-csf"
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: aml-frontend
+      app.kubernetes.io/component: frontend
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: istio-system
+        - namespaceSelector:
+            matchLabels:
+              name: aml-monitoring
+      ports:
+        - protocol: TCP
+          port: 3000
+        - protocol: TCP
+          port: 8080
+  egress:
+    - to: []
+      ports:
+        - protocol: TCP
+          port: 53
+        - protocol: UDP
+          port: 53
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: aml-backend
+      ports:
+        - protocol: TCP
+          port: 8080
+        - protocol: TCP
+          port: 8443
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: aml-kyc-agent
+      ports:
+        - protocol: TCP
+          port: 8080
+        - protocol: TCP
+          port: 8443
+    - to: []
+      ports:
+        - protocol: TCP
+          port: 443
+        - protocol: TCP
+          port: 80
+
+---
+# AML KYC Agent Network Policy
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: aml-kyc-agent-policy
+  namespace: aml-kyc-agent
+  labels:
+    app.kubernetes.io/name: aml-kyc-agent
+    app.kubernetes.io/component: agent
+    security.aml.io/compliance: "nist-csf"
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: aml-kyc-agent
+      app.kubernetes.io/component: agent
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: aml-backend
+        - namespaceSelector:
+            matchLabels:
+              name: aml-frontend
+        - namespaceSelector:
+            matchLabels:
+              name: istio-system
+      ports:
+        - protocol: TCP
+          port: 8080
+        - protocol: TCP
+          port: 8443
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: aml-monitoring
+      ports:
+        - protocol: TCP
+          port: 9090
+  egress:
+    - to: []
+      ports:
+        - protocol: TCP
+          port: 53
+        - protocol: UDP
+          port: 53
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: aml-backend
+      ports:
+        - protocol: TCP
+          port: 8080
+        - protocol: TCP
+          port: 8443
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: aml-monitoring
+      ports:
+        - protocol: TCP
+          port: 9090
+        - protocol: TCP
+          port: 3000
+        - protocol: TCP
+          port: 16686
+    - to: []
+      ports:
+        - protocol: TCP
+          port: 443
+        - protocol: TCP
+          port: 80
+
+---
+# Database Network Policy
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: aml-database-policy
+  namespace: aml-backend
+  labels:
+    app.kubernetes.io/name: aml-database
+    app.kubernetes.io/component: database
+    security.aml.io/compliance: "nist-csf"
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: aml-database
+      app.kubernetes.io/component: database
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: aml-backend
+      ports:
+        - protocol: TCP
+          port: 5432
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: aml-monitoring
+      ports:
+        - protocol: TCP
+          port: 5432
+  egress:
+    - to: []
+      ports:
+        - protocol: TCP
+          port: 53
+        - protocol: UDP
+          port: 53
+    - to: []
+      ports:
+        - protocol: TCP
+          port: 443
+        - protocol: TCP
+          port: 80
+
+---
+# Redis Cache Network Policy
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: aml-redis-policy
+  namespace: aml-backend
+  labels:
+    app.kubernetes.io/name: aml-redis
+    app.kubernetes.io/component: cache
+    security.aml.io/compliance: "nist-csf"
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: aml-redis
+      app.kubernetes.io/component: cache
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: aml-backend
+      ports:
+        - protocol: TCP
+          port: 6379
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: aml-monitoring
+      ports:
+        - protocol: TCP
+          port: 6379
+  egress:
+    - to: []
+      ports:
+        - protocol: TCP
+          port: 53
+        - protocol: UDP
+          port: 53
+    - to: []
+      ports:
+        - protocol: TCP
+          port: 443
+        - protocol: TCP
+          port: 80
+
+---
+# Elasticsearch Network Policy
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: aml-elasticsearch-policy
+  namespace: aml-backend
+  labels:
+    app.kubernetes.io/name: aml-elasticsearch
+    app.kubernetes.io/component: search
+    security.aml.io/compliance: "nist-csf"
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: aml-elasticsearch
+      app.kubernetes.io/component: search
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: aml-backend
+      ports:
+        - protocol: TCP
+          port: 9200
+        - protocol: TCP
+          port: 9300
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: aml-monitoring
+      ports:
+        - protocol: TCP
+          port: 9200
+        - protocol: TCP
+          port: 9300
+  egress:
+    - to: []
+      ports:
+        - protocol: TCP
+          port: 53
+        - protocol: UDP
+          port: 53
+    - to: []
+      ports:
+        - protocol: TCP
+          port: 443
+        - protocol: TCP
+          port: 80
+
+---
+# Monitoring Network Policy
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: aml-monitoring-policy
+  namespace: aml-monitoring
+  labels:
+    app.kubernetes.io/name: aml-monitoring
+    app.kubernetes.io/component: monitoring
+    security.aml.io/compliance: "nist-csf"
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: aml-monitoring
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: aml-backend
+        - namespaceSelector:
+            matchLabels:
+              name: aml-frontend
+        - namespaceSelector:
+            matchLabels:
+              name: aml-kyc-agent
+      ports:
+        - protocol: TCP
+          port: 9090
+        - protocol: TCP
+          port: 3000
+        - protocol: TCP
+          port: 16686
+        - protocol: TCP
+          port: 9200
+  egress:
+    - to: []
+      ports:
+        - protocol: TCP
+          port: 53
+        - protocol: UDP
+          port: 53
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: aml-backend
+        - namespaceSelector:
+            matchLabels:
+              name: aml-frontend
+        - namespaceSelector:
+            matchLabels:
+              name: aml-kyc-agent
+      ports:
+        - protocol: TCP
+          port: 8080
+        - protocol: TCP
+          port: 8443
+        - protocol: TCP
+          port: 5432
+        - protocol: TCP
+          port: 6379
+        - protocol: TCP
+          port: 9200
+    - to: []
+      ports:
+        - protocol: TCP
+          port: 443
+        - protocol: TCP
+          port: 80
+
+---
+# Security Tools Network Policy
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: aml-security-tools-policy
+  namespace: aml-kyc-agent
+  labels:
+    app.kubernetes.io/name: aml-security-tools
+    app.kubernetes.io/component: security
+    security.aml.io/compliance: "nist-csf"
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: aml-security-tools
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: aml-monitoring
+      ports:
+        - protocol: TCP
+          port: 9090
+        - protocol: TCP
+          port: 3000
+  egress:
+    - to: []
+      ports:
+        - protocol: TCP
+          port: 53
+        - protocol: UDP
+          port: 53
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: aml-backend
+        - namespaceSelector:
+            matchLabels:
+              name: aml-frontend
+        - namespaceSelector:
+            matchLabels:
+              name: aml-kyc-agent
+      ports:
+        - protocol: TCP
+          port: 8080
+        - protocol: TCP
+          port: 8443
+    - to: []
+      ports:
+        - protocol: TCP
+          port: 443
+        - protocol: TCP
+          port: 80
+
+---
+# Compliance Tools Network Policy
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: aml-compliance-tools-policy
+  namespace: aml-kyc-agent
+  labels:
+    app.kubernetes.io/name: aml-compliance-tools
+    app.kubernetes.io/component: compliance
+    security.aml.io/compliance: "nist-csf"
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: aml-compliance-tools
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: aml-monitoring
+      ports:
+        - protocol: TCP
+          port: 9090
+        - protocol: TCP
+          port: 3000
+  egress:
+    - to: []
+      ports:
+        - protocol: TCP
+          port: 53
+        - protocol: UDP
+          port: 53
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: aml-backend
+        - namespaceSelector:
+            matchLabels:
+              name: aml-frontend
+        - namespaceSelector:
+            matchLabels:
+              name: aml-kyc-agent
+      ports:
+        - protocol: TCP
+          port: 8080
+        - protocol: TCP
+          port: 8443
+    - to: []
+      ports:
+        - protocol: TCP
+          port: 443
+        - protocol: TCP
+          port: 80
+
+---
+# Istio Service Mesh Network Policy
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: aml-istio-policy
+  namespace: istio-system
+  labels:
+    app.kubernetes.io/name: aml-istio
+    app.kubernetes.io/component: service-mesh
+    security.aml.io/compliance: "nist-csf"
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: aml-istio
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: aml-backend
+        - namespaceSelector:
+            matchLabels:
+              name: aml-frontend
+        - namespaceSelector:
+            matchLabels:
+              name: aml-kyc-agent
+      ports:
+        - protocol: TCP
+          port: 8080
+        - protocol: TCP
+          port: 8443
+        - protocol: TCP
+          port: 15000
+        - protocol: TCP
+          port: 15001
+        - protocol: TCP
+          port: 15006
+        - protocol: TCP
+          port: 15010
+        - protocol: TCP
+          port: 15012
+        - protocol: TCP
+          port: 15014
+        - protocol: TCP
+          port: 15020
+        - protocol: TCP
+          port: 15021
+        - protocol: TCP
+          port: 15090
+  egress:
+    - to: []
+      ports:
+        - protocol: TCP
+          port: 53
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 443
+        - protocol: TCP
+          port: 80
+        - protocol: TCP
+          port: 8080
+        - protocol: TCP
+          port: 8443
+        - protocol: TCP
+          port: 15000
+        - protocol: TCP
+          port: 15001
+        - protocol: TCP
+          port: 15006
+        - protocol: TCP
+          port: 15010
+        - protocol: TCP
+          port: 15012
+        - protocol: TCP
+          port: 15014
+        - protocol: TCP
+          port: 15020
+        - protocol: TCP
+          port: 15021
+        - protocol: TCP
+          port: 15090

@@ -1,0 +1,377 @@
+# SPIRE Agent DaemonSet
+# AML-KYC Agent Zero Trust Identity Management
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: spire-agent
+  namespace: spire-system
+  labels:
+    app.kubernetes.io/name: spire-agent
+    app.kubernetes.io/component: identity-management
+    app.kubernetes.io/part-of: aml-kyc-agent
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: spire-agent
+  labels:
+    app.kubernetes.io/name: spire-agent
+    app.kubernetes.io/component: identity-management
+    app.kubernetes.io/part-of: aml-kyc-agent
+rules:
+- apiGroups: [""]
+  resources: ["nodes", "pods", "services", "endpoints", "persistentvolumeclaims", "events", "configmaps", "secrets"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["apps"]
+  resources: ["deployments", "daemonsets", "replicasets", "statefulsets"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["extensions", "networking.k8s.io"]
+  resources: ["ingresses"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["policy"]
+  resources: ["podsecuritypolicies"]
+  verbs: ["use"]
+  resourceNames: ["spire-agent"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: spire-agent
+  labels:
+    app.kubernetes.io/name: spire-agent
+    app.kubernetes.io/component: identity-management
+    app.kubernetes.io/part-of: aml-kyc-agent
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: spire-agent
+subjects:
+- kind: ServiceAccount
+  name: spire-agent
+  namespace: spire-system
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: spire-agent-config
+  namespace: spire-system
+  labels:
+    app.kubernetes.io/name: spire-agent
+    app.kubernetes.io/component: identity-management
+    app.kubernetes.io/part-of: aml-kyc-agent
+data:
+  agent.conf: |
+    # Production SPIRE Agent Configuration
+    agent:
+      data_dir: "/opt/spire/data/agent"
+      log_level: "INFO"
+      log_format: "json"
+      trust_domain: "aml-advisory.company.com"
+      server_address: "spire-server.spire-system.svc.cluster.local"
+      server_port: "8081"
+      
+      workload_api:
+        bind_address: "127.0.0.1"
+        bind_port: "8082"
+        socket_path: "/tmp/spire-agent.sock"
+        trust_domain: "aml-advisory.company.com"
+      
+      plugins:
+        NodeAttestor:
+          k8s_psat:
+            plugin_data:
+              cluster: "production"
+              token_file: "/var/run/secrets/kubernetes.io/serviceaccount/token"
+              cert_file: "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+        
+        KeyManager:
+          memory:
+            plugin_data: {}
+        
+        WorkloadAttestor:
+          unix:
+            plugin_data:
+              discover_workload_path: true
+              workload_size_limit: 1048576
+        
+          k8s:
+            plugin_data:
+              kubelet_read_only_port: 10255
+              skip_kubelet_verification: false
+              node_name_env: "KUBERNETES_NODE_NAME"
+              pod_label: "spiffe.io/workload"
+              pod_annotation: "spiffe.io/workload"
+        
+          docker:
+            plugin_data:
+              docker_socket_path: "/var/run/docker.sock"
+              container_id_cgroup_matchers:
+                - "/docker/<id>"
+                - "/docker-ce/docker/<id>"
+    
+    telemetry:
+      prometheus:
+        port: "8083"
+        listen_socket: "/tmp/spire-agent.sock"
+    
+    health_checks:
+      listener_enabled: true
+      bind_address: "127.0.0.1"
+      bind_port: "8081"
+      live_path: "/live"
+      ready_path: "/ready"
+    
+    audit_log:
+      enabled: true
+      log_level: "INFO"
+      log_format: "json"
+      log_file: "/opt/spire/logs/audit.log"
+      max_size_mb: 50
+      max_backups: 3
+      max_age_days: 7
+      compress: true
+    
+    security:
+      default_svid_ttl: "1h"
+      rate_limit:
+        enabled: true
+        requests_per_second: 50
+        burst_size: 100
+    
+    workload:
+      registration:
+        enabled: true
+        auto_register: true
+        registration_ttl: "24h"
+      validation:
+        enabled: true
+        strict_validation: true
+        allow_unregistered_workloads: false
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: spire-agent
+  namespace: spire-system
+  labels:
+    app.kubernetes.io/name: spire-agent
+    app.kubernetes.io/component: identity-management
+    app.kubernetes.io/part-of: aml-kyc-agent
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: spire-agent
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: spire-agent
+        app.kubernetes.io/component: identity-management
+        app.kubernetes.io/part-of: aml-kyc-agent
+    spec:
+      serviceAccountName: spire-agent
+      hostNetwork: true
+      hostPID: true
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+      containers:
+      - name: spire-agent
+        image: gcr.io/spiffe-io/spire-agent:1.8.0
+        imagePullPolicy: IfNotPresent
+        args:
+        - -config
+        - /opt/spire/conf/agent.conf
+        ports:
+        - name: grpc
+          containerPort: 8081
+          protocol: TCP
+        - name: workload-api
+          containerPort: 8082
+          protocol: TCP
+        - name: metrics
+          containerPort: 8083
+          protocol: TCP
+        env:
+        - name: KUBERNETES_NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        volumeMounts:
+        - name: spire-config
+          mountPath: /opt/spire/conf
+        - name: spire-data
+          mountPath: /opt/spire/data
+        - name: spire-logs
+          mountPath: /opt/spire/logs
+        - name: spire-tmp
+          mountPath: /tmp
+        - name: spire-socket
+          mountPath: /tmp/spire-agent.sock
+        - name: spire-workload-socket
+          mountPath: /tmp/spire-workload.sock
+        - name: spire-kubelet-socket
+          mountPath: /var/run/docker.sock
+        - name: spire-cgroup
+          mountPath: /sys/fs/cgroup
+          readOnly: true
+        - name: spire-proc
+          mountPath: /host/proc
+          readOnly: true
+        - name: spire-sys
+          mountPath: /host/sys
+          readOnly: true
+        - name: spire-dev
+          mountPath: /host/dev
+          readOnly: true
+        - name: spire-boot
+          mountPath: /host/boot
+          readOnly: true
+        - name: spire-lib-modules
+          mountPath: /host/lib/modules
+          readOnly: true
+        - name: spire-usr
+          mountPath: /host/usr
+          readOnly: true
+        - name: spire-etc
+          mountPath: /host/etc
+          readOnly: true
+        - name: spire-var-log
+          mountPath: /host/var/log
+          readOnly: true
+        - name: spire-var-run
+          mountPath: /host/var/run
+          readOnly: true
+        - name: spire-tmp-host
+          mountPath: /host/tmp
+          readOnly: true
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            cpu: 200m
+            memory: 512Mi
+        livenessProbe:
+          httpGet:
+            path: /live
+            port: 8081
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8081
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 1000
+          runAsGroup: 1000
+          capabilities:
+            drop:
+            - ALL
+      volumes:
+      - name: spire-config
+        configMap:
+          name: spire-agent-config
+      - name: spire-data
+        hostPath:
+          path: /opt/spire/data/agent
+          type: DirectoryOrCreate
+      - name: spire-logs
+        hostPath:
+          path: /opt/spire/logs
+          type: DirectoryOrCreate
+      - name: spire-tmp
+        emptyDir: {}
+      - name: spire-socket
+        hostPath:
+          path: /tmp/spire-agent.sock
+          type: Socket
+      - name: spire-workload-socket
+        hostPath:
+          path: /tmp/spire-workload.sock
+          type: Socket
+      - name: spire-kubelet-socket
+        hostPath:
+          path: /var/run/docker.sock
+          type: Socket
+      - name: spire-cgroup
+        hostPath:
+          path: /sys/fs/cgroup
+          type: Directory
+      - name: spire-proc
+        hostPath:
+          path: /proc
+          type: Directory
+      - name: spire-sys
+        hostPath:
+          path: /sys
+          type: Directory
+      - name: spire-dev
+        hostPath:
+          path: /dev
+          type: Directory
+      - name: spire-boot
+        hostPath:
+          path: /boot
+          type: Directory
+      - name: spire-lib-modules
+        hostPath:
+          path: /lib/modules
+          type: Directory
+      - name: spire-usr
+        hostPath:
+          path: /usr
+          type: Directory
+      - name: spire-etc
+        hostPath:
+          path: /etc
+          type: Directory
+      - name: spire-var-log
+        hostPath:
+          path: /var/log
+          type: Directory
+      - name: spire-var-run
+        hostPath:
+          path: /var/run
+          type: Directory
+      - name: spire-tmp-host
+        hostPath:
+          path: /tmp
+          type: Directory
+      nodeSelector:
+        kubernetes.io/os: linux
+      tolerations:
+      - key: node-role.kubernetes.io/master
+        operator: Exists
+        effect: NoSchedule
+      - key: node-role.kubernetes.io/control-plane
+        operator: Exists
+        effect: NoSchedule
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/os
+                operator: In
+                values:
+                - linux
