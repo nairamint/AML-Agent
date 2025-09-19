@@ -38,7 +38,35 @@ Architecture (high level)
 - Deployment: Kubernetes + Helm charts, containerized services
 
 Architecture Diagram (v2)
-![Architecture Diagram v2](docs/architecture-v2.png)
+
+┌─────────────────────────────────────────────────────────────┐
+│                    API Gateway (Kong)                       │
+│              Rate Limiting | Auth | Routing                 │
+└─────────────────────┬───────────────────────────────────────┘
+                      │
+    ┌─────────────────┼─────────────────┐
+    │                 │                 │
+┌───▼───┐         ┌───▼───┐         ┌───▼───┐
+│ Auth  │         │ Chat  │         │ Admin │
+│Service│         │Service│         │Service│
+└───┬───┘         └───┬───┘         └───┬───┘
+    │                 │                 │
+    └─────────────────┼─────────────────┘
+                      │
+    ┌─────────────────┼─────────────────┐
+    │                 │                 │
+┌───▼───┐         ┌───▼───┐         ┌───▼───┐
+│ LLM   │         │ Data  │         │ Audit │
+│Service│         │Service│         │Service│
+└───┬───┘         └───┬───┘         └───┬───┘
+    │                 │                 │
+    └─────────────────┼─────────────────┘
+                      │
+              ┌───────▼───────┐
+              │   PostgreSQL  │
+              │   + Qdrant    │
+              │   + Redis     │
+              └───────────────┘
 
 Quickstart (developer)
 Prerequisites:
